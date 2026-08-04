@@ -7,6 +7,7 @@ import { DataService } from '../../services/dataService';
 import Pagination from '../../components/Pagination';
 import Logo from '../../components/Logo';
 import ImageUploader from '../../components/ImageUploader';
+import MultiImageUploader from '../../components/MultiImageUploader';
 
 export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, onOpenAuthModal, onLogout }) {
   const [activeCmsSection, setActiveCmsSection] = useState('dashboard');
@@ -58,6 +59,7 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
     ownerType: 'tiny',
     vacantRoomsCount: 5,
     coverImage: '',
+    images: [],
     hostName: 'Đỗ Thảo Nguyên',
     hostPhone: '0167423824',
     hostEmail: 'minhxuyen88@gmail.com',
@@ -79,6 +81,7 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
     availableFrom: 'Ở ngay',
     status: 'Có sẵn',
     coverImage: '',
+    images: [],
     amenitiesFurniture: ['Điều hòa', 'Nóng lạnh', 'Giường', 'Tủ quần áo', 'Tủ bếp trên', 'Tủ bếp dưới'],
     amenitiesPrivate: ['Wifi từng phòng', 'Khóa vân tay', 'Ban công']
   });
@@ -196,6 +199,7 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
         ownerType: bldg.ownerType || (bldg.isTiny ? 'tiny' : 'partner'),
         vacantRoomsCount: bldg.vacantRoomsCount || 5,
         coverImage: bldg.coverImage || '',
+        images: bldg.images && bldg.images.length ? bldg.images : (bldg.coverImage ? [bldg.coverImage] : []),
         hostName: bldg.host?.name || 'Đỗ Thảo Nguyên',
         hostPhone: bldg.host?.phone || '0167423824',
         hostEmail: bldg.host?.email || 'minhxuyen88@gmail.com',
@@ -217,6 +221,7 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
         ownerType: 'tiny',
         vacantRoomsCount: 5,
         coverImage: '',
+        images: [],
         hostName: 'Đỗ Thảo Nguyên',
         hostPhone: '0167423824',
         hostEmail: 'minhxuyen88@gmail.com',
@@ -247,6 +252,9 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
 
   const handleSaveBuildingSubmit = (e) => {
     e.preventDefault();
+    const buildingImages = buildingForm.images && buildingForm.images.length ? buildingForm.images : (buildingForm.coverImage ? [buildingForm.coverImage] : ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80']);
+    const cover = buildingImages[0];
+
     const updated = DataService.saveBuilding({
       id: editingBuilding ? editingBuilding.id : `bldg_${Date.now()}`,
       code: buildingForm.code,
@@ -260,7 +268,8 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
       isTiny: buildingForm.ownerType === 'tiny',
       ownerType: buildingForm.ownerType,
       vacantRoomsCount: Number(buildingForm.vacantRoomsCount),
-      coverImage: buildingForm.coverImage || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80',
+      coverImage: cover,
+      images: buildingImages,
       host: {
         name: buildingForm.hostName,
         phone: buildingForm.hostPhone,
@@ -290,6 +299,7 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
         availableFrom: rm.availableFrom || 'Ở ngay',
         status: rm.status,
         coverImage: rm.images && rm.images.length ? rm.images[0] : '',
+        images: rm.images && rm.images.length ? rm.images : [],
         amenitiesFurniture: rm.amenities?.furniture || ['Điều hòa', 'Nóng lạnh', 'Giường', 'Tủ quần áo'],
         amenitiesPrivate: rm.amenities?.private || ['Wifi từng phòng', 'Khóa vân tay', 'Ban công']
       });
@@ -305,6 +315,7 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
         availableFrom: 'Ở ngay',
         status: 'Có sẵn',
         coverImage: '',
+        images: [],
         amenitiesFurniture: ['Điều hòa', 'Nóng lạnh', 'Giường nệm', 'Tủ quần áo'],
         amenitiesPrivate: ['Wifi từng phòng', 'Khóa vân tay', 'Ban công']
       });
@@ -323,6 +334,8 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
 
   const handleSaveRoomSubmit = (e) => {
     e.preventDefault();
+    const roomImages = roomForm.images && roomForm.images.length ? roomForm.images : (roomForm.coverImage ? [roomForm.coverImage] : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80']);
+
     const updated = DataService.saveRoom({
       id: editingRoom ? editingRoom.id : `rm_${Date.now()}`,
       buildingCode: roomForm.buildingCode,
@@ -334,7 +347,7 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
       maxOccupants: Number(roomForm.maxOccupants),
       availableFrom: roomForm.availableFrom,
       status: roomForm.status,
-      images: roomForm.coverImage ? [roomForm.coverImage] : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80'],
+      images: roomImages,
       amenities: {
         furniture: roomForm.amenitiesFurniture,
         private: roomForm.amenitiesPrivate
@@ -1212,14 +1225,14 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
         )}
       </main>
 
-      {/* FULL DETAILED BUILDING MODAL (TABBED FORM) */}
+      {/* FULL DETAILED BUILDING MODAL WITH MULTI IMAGE UPLOADER */}
       {showBuildingModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)',
           zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
         }}>
-          <div className="card" style={{ width: '100%', maxWidth: 640, padding: 32, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="card" style={{ width: '100%', maxWidth: 680, padding: 32, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
             <button style={{ position: 'absolute', top: 16, right: 16, background: 'none', color: '#64748B' }} onClick={() => setShowBuildingModal(false)}>
               <X size={20} />
             </button>
@@ -1228,7 +1241,7 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
               {editingBuilding ? `Chỉnh sửa Tòa nhà ${editingBuilding.code}` : 'Thêm Tòa Nhà Mới'}
             </h2>
             <p style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: 16 }}>
-              Nhập thông tin địa lý, tọa độ Leaflet Map, người quản lý Host và an toàn PCCC.
+              Nhập thông tin địa lý, tọa độ Leaflet Map, người quản lý Host và tải nhiều ảnh cùng lúc.
             </p>
 
             {/* TAB SELECTOR */}
@@ -1263,7 +1276,7 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
                 style={{ fontSize: '0.8rem', padding: '6px 14px' }}
                 onClick={() => setBuildingTab('images')}
               >
-                📸 Ảnh Cloud
+                📸 Tải Nhiều Ảnh ({buildingForm.images?.length || 0})
               </button>
             </div>
 
@@ -1395,13 +1408,13 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
                 </div>
               )}
 
-              {/* TAB 4: CLOUD IMAGES */}
+              {/* TAB 4: MULTI CLOUD IMAGES */}
               {buildingTab === 'images' && (
                 <div>
-                  <ImageUploader 
-                    label="📸 Tải ảnh bìa Tòa nhà từ máy tính"
-                    value={buildingForm.coverImage}
-                    onChange={(newUrl) => setBuildingForm({ ...buildingForm, coverImage: newUrl })}
+                  <MultiImageUploader 
+                    label="📸 Bộ sưu tập hình ảnh Tòa nhà (Tải nhiều ảnh cùng lúc)"
+                    images={buildingForm.images}
+                    onChange={(newImagesList) => setBuildingForm({ ...buildingForm, images: newImagesList, coverImage: newImagesList[0] || '' })}
                   />
                 </div>
               )}
@@ -1415,14 +1428,14 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
         </div>
       )}
 
-      {/* FULL DETAILED ROOM MODAL (TABBED FORM) */}
+      {/* FULL DETAILED ROOM MODAL WITH MULTI IMAGE UPLOADER */}
       {showRoomModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)',
           zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
         }}>
-          <div className="card" style={{ width: '100%', maxWidth: 640, padding: 32, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="card" style={{ width: '100%', maxWidth: 680, padding: 32, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
             <button style={{ position: 'absolute', top: 16, right: 16, background: 'none', color: '#64748B' }} onClick={() => setShowRoomModal(false)}>
               <X size={20} />
             </button>
@@ -1431,7 +1444,7 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
               {editingRoom ? `Chỉnh sửa Căn hộ ${editingRoom.roomNumber}` : 'Thêm Căn Hộ Mới'}
             </h2>
             <p style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: 16 }}>
-              Nhập chi tiết diện tích, mức giá thuê, trạng thái và checklist trang thiết bị nội thất.
+              Nhập chi tiết diện tích, mức giá thuê, trạng thái và tải nhiều ảnh phòng thực tế.
             </p>
 
             {/* TAB SELECTOR */}
@@ -1466,7 +1479,7 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
                 style={{ fontSize: '0.8rem', padding: '6px 14px' }}
                 onClick={() => setRoomTab('images')}
               >
-                📸 Ảnh phòng Cloud
+                📸 Tải Nhiều Ảnh ({roomForm.images?.length || 0})
               </button>
             </div>
 
@@ -1559,13 +1572,13 @@ export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, o
                 </div>
               )}
 
-              {/* TAB 4: CLOUD IMAGES */}
+              {/* TAB 4: MULTI CLOUD IMAGES */}
               {roomTab === 'images' && (
                 <div>
-                  <ImageUploader 
-                    label="📸 Tải ảnh phòng thực tế từ máy tính"
-                    value={roomForm.coverImage}
-                    onChange={(newUrl) => setRoomForm({ ...roomForm, coverImage: newUrl })}
+                  <MultiImageUploader 
+                    label="📸 Bộ sưu tập ảnh phòng thực tế (Tải nhiều ảnh cùng lúc)"
+                    images={roomForm.images}
+                    onChange={(newImagesList) => setRoomForm({ ...roomForm, images: newImagesList, coverImage: newImagesList[0] || '' })}
                   />
                 </div>
               )}
