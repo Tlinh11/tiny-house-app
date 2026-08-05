@@ -1,10 +1,32 @@
 // API Client for connecting Tiny Houses Frontend to Express & Supabase Backend API
 const API_BASE_URL = '/api';
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('tinyhouse_jwt');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
+
 export const ApiClient = {
+  getToken() {
+    return localStorage.getItem('tinyhouse_jwt');
+  },
+
+  setToken(token) {
+    if (token) {
+      localStorage.setItem('tinyhouse_jwt', token);
+    } else {
+      localStorage.removeItem('tinyhouse_jwt');
+    }
+  },
+
   async get(endpoint) {
     try {
-      const res = await fetch(`${API_BASE_URL}${endpoint}`);
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+        headers: getAuthHeaders()
+      });
       if (!res.ok) throw new Error(`API Error ${res.status}`);
       const data = await res.json();
       return data.data !== undefined ? data.data : data;
@@ -18,7 +40,7 @@ export const ApiClient = {
     try {
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(body)
       });
       if (!res.ok) throw new Error(`API Error ${res.status}`);
@@ -34,7 +56,7 @@ export const ApiClient = {
     try {
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(body)
       });
       if (!res.ok) throw new Error(`API Error ${res.status}`);
@@ -48,7 +70,10 @@ export const ApiClient = {
 
   async delete(endpoint) {
     try {
-      const res = await fetch(`${API_BASE_URL}${endpoint}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, { 
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
       if (!res.ok) throw new Error(`API Error ${res.status}`);
       const data = await res.json();
       return data.data !== undefined ? data.data : data;

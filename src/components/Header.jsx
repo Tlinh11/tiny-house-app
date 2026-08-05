@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Home, Search, Users, PhoneCall, ShieldCheck, UserCheck, LayoutDashboard, Menu, X, Building2, LogOut, User as UserIcon } from 'lucide-react';
+import { Home, Search, Users, PhoneCall, ShieldCheck, UserCheck, LayoutDashboard, Menu, X, Building2, LogOut, User as UserIcon, Lock } from 'lucide-react';
 import { DataService } from '../services/dataService';
+import { ApiClient } from '../services/apiClient';
 import Logo from './Logo';
 
 export default function Header({ activeTab, setActiveTab, onOpenAuthModal, currentUser, onLogout }) {
@@ -27,6 +28,8 @@ export default function Header({ activeTab, setActiveTab, onOpenAuthModal, curre
     const roleObj = roles.find(r => r.code === currentUser.roleCode || r.name === currentUser.roleName) || roles[0];
     return roleObj && roleObj.allowedScreens && roleObj.allowedScreens.length > 0;
   };
+
+  const hasJwtToken = !!ApiClient.getToken();
 
   return (
     <header className="main-header">
@@ -80,6 +83,24 @@ export default function Header({ activeTab, setActiveTab, onOpenAuthModal, curre
                   <span className="badge badge-warning" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
                     {currentUser.roleName || currentUser.roleCode}
                   </span>
+                  {hasJwtToken && (
+                    <span 
+                      style={{ 
+                        fontSize: '0.65rem', 
+                        background: '#D1FAE5', 
+                        color: '#065F46', 
+                        padding: '1px 6px', 
+                        borderRadius: 4,
+                        fontWeight: 800,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2
+                      }}
+                      title="Mã xác thực JWT Session Active"
+                    >
+                      <Lock size={9} /> JWT
+                    </span>
+                  )}
                 </div>
 
                 {hasCmsAccess() && (
