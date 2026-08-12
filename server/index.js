@@ -568,7 +568,11 @@ app.get('/api/backup', requireRole(['admin']), (req, res) => {
   res.json(dataEngine.exportBackup());
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Tiny Houses Backend API Server running on http://localhost:${PORT}`);
-  console.log(`🔒 Real Auth & Admin Approval Workflow Active`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Tiny Houses Backend API Server running on http://localhost:${PORT}`);
+    console.log(`🔒 Real Auth & Admin Approval Workflow Active`);
+  });
+}
+
+export default app;
