@@ -43,14 +43,15 @@ export const ApiClient = {
         headers: getAuthHeaders(),
         body: JSON.stringify(body)
       });
-      if (!res.ok) throw new Error(`API Error ${res.status}`);
       const data = await res.json();
+      // Trả về data kể cả khi 4xx để caller xử lý pendingApproval, error...
       return data.data !== undefined ? data.data : data;
     } catch (err) {
       console.warn(`[ApiClient] POST ${endpoint} failed:`, err.message);
       return null;
     }
   },
+
 
   async put(endpoint, body) {
     try {

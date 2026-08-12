@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Home, Search, Users, PhoneCall, ShieldCheck, UserCheck, LayoutDashboard, Menu, X, Building2, LogOut, User as UserIcon, Lock } from 'lucide-react';
+import { Home, Search, Users, PhoneCall, ShieldCheck, UserCheck, LayoutDashboard, Menu, X, Building2, LogOut, User as UserIcon, Lock, Calendar } from 'lucide-react';
 import { DataService } from '../services/dataService';
 import { ApiClient } from '../services/apiClient';
 import Logo from './Logo';
+import MyBookingsModal from './MyBookingsModal';
 
 export default function Header({ activeTab, setActiveTab, onOpenAuthModal, currentUser, onLogout }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [myBookingsOpen, setMyBookingsOpen] = useState(false);
 
   const navItems = [
     { id: 'home', label: 'Trang chủ', icon: Home },
@@ -83,25 +85,24 @@ export default function Header({ activeTab, setActiveTab, onOpenAuthModal, curre
                   <span className="badge badge-warning" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
                     {currentUser.roleName || currentUser.roleCode}
                   </span>
-                  {hasJwtToken && (
-                    <span 
-                      style={{ 
-                        fontSize: '0.65rem', 
-                        background: '#D1FAE5', 
-                        color: '#065F46', 
-                        padding: '1px 6px', 
-                        borderRadius: 4,
-                        fontWeight: 800,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2
-                      }}
-                      title="Mã xác thực JWT Session Active"
-                    >
-                      <Lock size={9} /> JWT
-                    </span>
-                  )}
                 </div>
+
+                <button
+                  className="btn"
+                  style={{ 
+                    background: '#FFF7ED', 
+                    color: '#E8920A', 
+                    fontSize: '0.75rem', 
+                    padding: '5px 12px',
+                    borderRadius: '20px',
+                    border: '1px solid #FED7AA'
+                  }}
+                  onClick={() => setMyBookingsOpen(true)}
+                  title="Xem danh sách lịch hẹn xem phòng của tôi"
+                >
+                  <Calendar size={13} />
+                  <span>Lịch hẹn</span>
+                </button>
 
                 {hasCmsAccess() && (
                   <button
@@ -216,17 +217,33 @@ export default function Header({ activeTab, setActiveTab, onOpenAuthModal, curre
                 Đăng xuất ({currentUser.name})
               </button>
             ) : (
-              <button 
-                className="btn btn-primary" 
-                style={{ padding: 14, fontWeight: 800 }}
-                onClick={() => { onOpenAuthModal('login'); setMobileMenuOpen(false); }}
-              >
-                Đăng nhập / Đăng ký
-              </button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ padding: 14, fontWeight: 800 }}
+                  onClick={() => { onOpenAuthModal('login'); setMobileMenuOpen(false); }}
+                >
+                  Đăng nhập
+                </button>
+                <button 
+                  className="btn btn-primary" 
+                  style={{ padding: 14, fontWeight: 800 }}
+                  onClick={() => { onOpenAuthModal('register'); setMobileMenuOpen(false); }}
+                >
+                  Đăng ký
+                </button>
+              </div>
             )}
           </div>
         </div>
       )}
+
+      {/* My Bookings Modal */}
+      <MyBookingsModal
+        isOpen={myBookingsOpen}
+        onClose={() => setMyBookingsOpen(false)}
+        currentUser={currentUser}
+      />
     </header>
   );
 }

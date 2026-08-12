@@ -1,16 +1,16 @@
-// Data Service for local state & Backend API Server Cloud Realtime integration
+// Data Service for local state & Backend API Server Realtime integration
 import { INITIAL_BUILDINGS, INITIAL_ROOMS, INITIAL_BOOKINGS, INITIAL_CTVS, INITIAL_BLOGS } from '../data/mockData';
 import { ApiClient } from './apiClient';
 
 const STORAGE_KEYS = {
-  BUILDINGS: 'tinyhouse_buildings_v3',
-  ROOMS: 'tinyhouse_rooms_v3',
-  BOOKINGS: 'tinyhouse_bookings_v3',
-  CTVS: 'tinyhouse_ctvs_v3',
-  BLOGS: 'tinyhouse_blogs_v3',
-  ROLES: 'tinyhouse_roles_v3',
-  USERS: 'tinyhouse_users_v3',
-  CURRENT_USER: 'tinyhouse_current_user_v3',
+  BUILDINGS: 'tinyhouse_buildings_v4',
+  ROOMS: 'tinyhouse_rooms_v4',
+  BOOKINGS: 'tinyhouse_bookings_v4',
+  CTVS: 'tinyhouse_ctvs_v4',
+  BLOGS: 'tinyhouse_blogs_v4',
+  ROLES: 'tinyhouse_roles_v4',
+  USERS: 'tinyhouse_users_v4',
+  CURRENT_USER: 'tinyhouse_current_user_v4',
 };
 
 // Initial Roles Definition
@@ -48,6 +48,16 @@ export const INITIAL_ROLES = [
 // Initial Users Definition
 export const INITIAL_USERS = [
   {
+    id: "usr_tailinh_admin",
+    name: "Tài Linh Lê Phạm",
+    email: "tailinh@tinyhouse.vn",
+    phone: "0988123456",
+    roleCode: "admin",
+    roleName: "Quản trị viên (Super Admin)",
+    status: "Hoạt động",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+  },
+  {
     id: "usr_admin",
     name: "Đỗ Thảo Nguyên",
     email: "admin@tinyhouse.vn",
@@ -79,6 +89,14 @@ export const INITIAL_USERS = [
   }
 ];
 
+const listeners = new Set();
+
+const notifyListeners = () => {
+  listeners.forEach(fn => {
+    try { fn(); } catch (e) { console.error('DataService listener error:', e); }
+  });
+};
+
 const getStoredItem = (key, initialValue) => {
   try {
     const item = localStorage.getItem(key);
@@ -92,21 +110,64 @@ const getStoredItem = (key, initialValue) => {
 const setStoredItem = (key, value) => {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    notifyListeners();
   } catch (e) {
     console.error(`Error writing ${key} to localStorage`, e);
   }
 };
 
 export const DataService = {
+  subscribe: (listener) => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  },
+
+  // Fetch all backend endpoints in parallel
+  fetchAllAsync: async () => {
+    try {
+      const [buildings, rooms, bookings, roles, users] = await Promise.all([
+        ApiClient.get('/buildings'),
+        ApiClient.get('/rooms'),
+        ApiClient.get('/bookings'),
+        ApiClient.get('/roles'),
+        ApiClient.get('/users')
+      ]);
+
+      if (buildings && Array.isArray(buildings) && buildings.length > 0) {
+        setStoredItem(STORAGE_KEYS.BUILDINGS, buildings);
+      }
+      if (rooms && Array.isArray(rooms) && rooms.length > 0) {
+        setStoredItem(STORAGE_KEYS.ROOMS, rooms);
+      }
+      if (bookings && Array.isArray(bookings)) {
+        setStoredItem(STORAGE_KEYS.BOOKINGS, bookings);
+      }
+      if (roles && Array.isArray(roles) && roles.length > 0) {
+        setStoredItem(STORAGE_KEYS.ROLES, roles);
+      }
+      if (users && Array.isArray(users) && users.length > 0) {
+        setStoredItem(STORAGE_KEYS.USERS, users);
+        
+        // Sync active user's role from live users array
+        const activeUser = getStoredItem(STORAGE_KEYS.CURRENT_USER, null);
+        if (activeUser) {
+          const matchedUser = users.find(u => 
+            (u.email && activeUser.email && u.email.toLowerCase() === activeUser.email.toLowerCase()) ||
+            u.id === activeUser.id
+          );
+          if (matchedUser) {
+            setStoredItem(STORAGE_KEYS.CURRENT_USER, matchedUser);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[DataService] fetchAllAsync failed, using cached storage:', err);
+    }
+  },
+
   // Buildings (Sorted default: highest vacant rooms first)
   getBuildings: () => {
     const list = getStoredItem(STORAGE_KEYS.BUILDINGS, INITIAL_BUILDINGS);
-    // Fire background API sync
-    ApiClient.get('/buildings').then(apiData => {
-      if (apiData && Array.isArray(apiData)) {
-        setStoredItem(STORAGE_KEYS.BUILDINGS, apiData);
-      }
-    }).catch(() => {});
     return [...list].sort((a, b) => (b.vacantRoomsCount || 0) - (a.vacantRoomsCount || 0));
   },
   
@@ -116,7 +177,7 @@ export const DataService = {
     return list.find(b => b.id === id || b.code === id || (b.code && b.code.toLowerCase() === String(id).toLowerCase())) || list[0];
   },
 
-  saveBuilding: (buildingData) => {
+  saveBuilding: async (buildingData) => {
     const list = getStoredItem(STORAGE_KEYS.BUILDINGS, INITIAL_BUILDINGS);
     const existingIndex = list.findIndex(b => b.id === buildingData.id || b.code === buildingData.code);
     let updated;
@@ -127,17 +188,18 @@ export const DataService = {
       updated = [...list, { ...buildingData, id: buildingData.id || `BLD-${Date.now()}` }];
     }
     setStoredItem(STORAGE_KEYS.BUILDINGS, updated);
-    ApiClient.post('/buildings', buildingData).catch(() => {});
+    
+    // API POST to backend Express server
+    const apiRes = await ApiClient.post('/buildings', buildingData);
+    if (apiRes && Array.isArray(apiRes)) {
+      setStoredItem(STORAGE_KEYS.BUILDINGS, apiRes);
+    }
     return updated;
   },
 
   // Rooms
   getRooms: () => {
-    const list = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
-    ApiClient.get('/rooms').then(apiData => {
-      if (apiData && Array.isArray(apiData)) setStoredItem(STORAGE_KEYS.ROOMS, apiData);
-    }).catch(() => {});
-    return list;
+    return getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
   },
 
   getRoomsByBuilding: (buildingId) => {
@@ -151,7 +213,7 @@ export const DataService = {
     return rooms.find(r => r.id === roomId || r.id.includes(roomId)) || rooms[0];
   },
 
-  saveRoom: (roomData) => {
+  saveRoom: async (roomData) => {
     const rooms = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
     const index = rooms.findIndex(r => r.id === roomData.id);
     let updated;
@@ -162,20 +224,21 @@ export const DataService = {
       updated = [...rooms, { ...roomData, id: roomData.id || `RM-${Date.now()}` }];
     }
     setStoredItem(STORAGE_KEYS.ROOMS, updated);
-    ApiClient.post('/rooms', roomData).catch(() => {});
+
+    // API POST to backend
+    const apiRes = await ApiClient.post('/rooms', roomData);
+    if (apiRes && Array.isArray(apiRes)) {
+      setStoredItem(STORAGE_KEYS.ROOMS, apiRes);
+    }
     return updated;
   },
 
   // Bookings (Viewing Appointments)
   getBookings: () => {
-    const list = getStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
-    ApiClient.get('/bookings').then(apiData => {
-      if (apiData && Array.isArray(apiData)) setStoredItem(STORAGE_KEYS.BOOKINGS, apiData);
-    }).catch(() => {});
-    return list;
+    return getStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
   },
 
-  createBooking: (booking) => {
+  createBooking: async (booking) => {
     const bookings = getStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
     const newBooking = {
       ...booking,
@@ -185,15 +248,29 @@ export const DataService = {
     };
     const updated = [newBooking, ...bookings];
     setStoredItem(STORAGE_KEYS.BOOKINGS, updated);
-    ApiClient.post('/bookings', booking).catch(() => {});
+
+    // API POST to backend Express server
+    const apiRes = await ApiClient.post('/bookings', booking);
+    if (apiRes) {
+      // Re-fetch fresh bookings from backend
+      const freshBookings = await ApiClient.get('/bookings');
+      if (freshBookings && Array.isArray(freshBookings)) {
+        setStoredItem(STORAGE_KEYS.BOOKINGS, freshBookings);
+      }
+    }
     return newBooking;
   },
 
-  updateBookingStatus: (id, newStatus) => {
+  updateBookingStatus: async (id, newStatus) => {
     const bookings = getStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
     const updated = bookings.map(b => b.id === id ? { ...b, status: newStatus } : b);
     setStoredItem(STORAGE_KEYS.BOOKINGS, updated);
-    ApiClient.put(`/bookings/${id}/status`, { status: newStatus }).catch(() => {});
+
+    // API PUT to backend Express server
+    const apiRes = await ApiClient.put(`/bookings/${id}/status`, { status: newStatus });
+    if (apiRes && Array.isArray(apiRes)) {
+      setStoredItem(STORAGE_KEYS.BOOKINGS, apiRes);
+    }
     return updated;
   },
 
@@ -209,14 +286,10 @@ export const DataService = {
 
   // Roles & Permissions Management
   getRoles: () => {
-    const list = getStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES);
-    ApiClient.get('/roles').then(apiData => {
-      if (apiData && Array.isArray(apiData)) setStoredItem(STORAGE_KEYS.ROLES, apiData);
-    }).catch(() => {});
-    return list;
+    return getStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES);
   },
   
-  saveRole: (roleData) => {
+  saveRole: async (roleData) => {
     const roles = getStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES);
     const index = roles.findIndex(r => r.id === roleData.id || r.code === roleData.code);
     let updated;
@@ -232,28 +305,32 @@ export const DataService = {
       updated = [...roles, newRole];
     }
     setStoredItem(STORAGE_KEYS.ROLES, updated);
-    ApiClient.post('/roles', roleData).catch(() => {});
+
+    const apiRes = await ApiClient.post('/roles', roleData);
+    if (apiRes && Array.isArray(apiRes)) {
+      setStoredItem(STORAGE_KEYS.ROLES, apiRes);
+    }
     return updated;
   },
 
-  deleteRole: (roleId) => {
+  deleteRole: async (roleId) => {
     const roles = getStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES);
     const updated = roles.filter(r => r.id !== roleId && r.code !== roleId);
     setStoredItem(STORAGE_KEYS.ROLES, updated);
-    ApiClient.delete(`/roles/${roleId}`).catch(() => {});
+
+    const apiRes = await ApiClient.delete(`/roles/${roleId}`);
+    if (apiRes && Array.isArray(apiRes)) {
+      setStoredItem(STORAGE_KEYS.ROLES, apiRes);
+    }
     return updated;
   },
 
   // Users Management
   getUsers: () => {
-    const list = getStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS);
-    ApiClient.get('/users').then(apiData => {
-      if (apiData && Array.isArray(apiData)) setStoredItem(STORAGE_KEYS.USERS, apiData);
-    }).catch(() => {});
-    return list;
+    return getStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS);
   },
 
-  saveUser: (userData) => {
+  saveUser: async (userData) => {
     const users = getStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS);
     const index = users.findIndex(u => u.id === userData.id || u.email === userData.email);
     let updated;
@@ -270,8 +347,24 @@ export const DataService = {
       updated = [...users, newUser];
     }
     setStoredItem(STORAGE_KEYS.USERS, updated);
-    ApiClient.post('/users', userData).catch(() => {});
+
+    const apiRes = await ApiClient.post('/users', userData);
+    if (apiRes && Array.isArray(apiRes)) {
+      setStoredItem(STORAGE_KEYS.USERS, apiRes);
+    }
     return updated;
+  },
+
+  approveUserAccount: async (userId, action) => {
+    const apiRes = await ApiClient.post('/users/approve', { userId, action });
+    if (apiRes && apiRes.users) {
+      setStoredItem(STORAGE_KEYS.USERS, apiRes.users);
+      return apiRes;
+    }
+    const users = getStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS);
+    const updated = users.map(u => u.id === userId ? { ...u, status: action === 'approve' ? 'Hoạt động' : 'Từ chối' } : u);
+    setStoredItem(STORAGE_KEYS.USERS, updated);
+    return { success: true, users: updated };
   },
 
   // Authentication & Current User State
@@ -284,6 +377,8 @@ export const DataService = {
 
   logoutUser: () => {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    localStorage.removeItem('tinyhouse_jwt');
+    notifyListeners();
     return null;
   },
 
@@ -306,7 +401,7 @@ export const DataService = {
     return backupData;
   },
 
-  importBackupData: (backupJson) => {
+  importBackupData: async (backupJson) => {
     try {
       if (backupJson && backupJson.tables) {
         if (backupJson.tables.buildings) setStoredItem(STORAGE_KEYS.BUILDINGS, backupJson.tables.buildings);
@@ -316,7 +411,7 @@ export const DataService = {
         if (backupJson.tables.blogs) setStoredItem(STORAGE_KEYS.BLOGS, backupJson.tables.blogs);
         if (backupJson.tables.roles) setStoredItem(STORAGE_KEYS.ROLES, backupJson.tables.roles);
         if (backupJson.tables.users) setStoredItem(STORAGE_KEYS.USERS, backupJson.tables.users);
-        ApiClient.post('/restore', backupJson).catch(() => {});
+        await ApiClient.post('/restore', backupJson);
         return { success: true, message: "Phục hồi cơ sở dữ liệu Backend thành công!" };
       } else {
         return { success: false, message: "Định dạng tập tin sao lưu không hợp lệ." };

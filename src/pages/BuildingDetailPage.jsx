@@ -1,12 +1,37 @@
-import React from 'react';
-import { MapPin, Star, ChevronRight, CheckCircle2, Building2, PhoneCall, ShieldCheck, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MapPin, Star, CheckCircle2, Building2, ShieldCheck, Sparkles, Eye } from 'lucide-react';
 import { DataService } from '../services/dataService';
 import MapView from '../components/MapView';
+import ImageLightboxModal from '../components/ImageLightboxModal';
 
 export default function BuildingDetailPage({ buildingId, setActiveTab, setSelectedRoomId }) {
-  const building = DataService.getBuildingById(buildingId || "TN007") || DataService.getBuildings()[0];
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const [building, setBuilding] = useState(() => DataService.getBuildingById(buildingId || "TN007") || DataService.getBuildings()[0]);
+  const [rooms, setRooms] = useState(() => DataService.getRoomsByBuilding(building?.id));
+
+  useEffect(() => {
+    const syncData = () => {
+      const b = DataService.getBuildingById(buildingId || "TN007") || DataService.getBuildings()[0];
+      setBuilding(b);
+      setRooms(DataService.getRoomsByBuilding(b?.id));
+    };
+    syncData();
+    const unsubscribe = DataService.subscribe(syncData);
+    return () => unsubscribe();
+  }, [buildingId]);
+
   const allBuildings = DataService.getBuildings().filter(b => b.id !== building.id);
-  const rooms = DataService.getRoomsByBuilding(building.id);
+
+  const galleryImages = building.images && building.images.length > 0 
+    ? building.images 
+    : [building.coverImage];
+
+  const handleOpenLightbox = (index) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
 
   const handleSelectRoom = (roomId) => {
     if (setSelectedRoomId) setSelectedRoomId(roomId);
@@ -42,21 +67,44 @@ export default function BuildingDetailPage({ buildingId, setActiveTab, setSelect
         </p>
 
         {/* 5-Photo Gallery Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16, marginBottom: 40, borderRadius: 20, overflow: 'hidden' }}>
+        <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16, marginBottom: 40, borderRadius: 20, overflow: 'hidden' }}>
           {/* Main Large Photo */}
-          <div style={{ height: 380 }}>
+          <div 
+            style={{ height: 380, cursor: 'pointer', position: 'relative', overflow: 'hidden' }}
+            onClick={() => handleOpenLightbox(0)}
+          >
             <img 
-              src={building.images[0] || building.coverImage} 
+              src={galleryImages[0] || building.coverImage} 
               alt={building.name} 
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} 
             />
+            <div style={{
+              position: 'absolute',
+              bottom: 12,
+              left: 12,
+              background: 'rgba(15, 23, 42, 0.75)',
+              color: '#fff',
+              padding: '6px 12px',
+              borderRadius: 20,
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}>
+              <Eye size={14} /> Click để phóng to gallery ({galleryImages.length} ảnh)
+            </div>
           </div>
 
           {/* Right 4 Small Photos Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, height: 380 }}>
-            {(building.images.slice(1, 5).concat([building.coverImage, building.coverImage])).slice(0, 4).map((img, idx) => (
-              <div key={idx} style={{ height: 182, overflow: 'hidden' }}>
-                <img src={img} alt={`Gallery ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            {(galleryImages.slice(1, 5).concat([building.coverImage, building.coverImage])).slice(0, 4).map((img, idx) => (
+              <div 
+                key={idx} 
+                style={{ height: 182, overflow: 'hidden', cursor: 'pointer', position: 'relative' }}
+                onClick={() => handleOpenLightbox(idx + 1 < galleryImages.length ? idx + 1 : 0)}
+              >
+                <img src={img} alt={`Gallery ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} />
               </div>
             ))}
           </div>
@@ -207,6 +255,16 @@ export default function BuildingDetailPage({ buildingId, setActiveTab, setSelect
           </div>
         </div>
       </div>
+
+      {/* Image Lightbox Modal */}
+      <ImageLightboxModal
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        images={galleryImages}
+        currentIndex={lightboxIndex}
+        onIndexChange={setLightboxIndex}
+        title={`Bộ sưu tập - Tòa ${building.code} - ${building.name}`}
+      />
     </div>
   );
 }

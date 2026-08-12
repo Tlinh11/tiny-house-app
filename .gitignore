@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .kiro
+.env
+*.env
+server/.env

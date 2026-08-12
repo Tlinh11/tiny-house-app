@@ -37,9 +37,9 @@ export default function MapView({
     if (!mapInstanceRef.current) {
       const initialCenter = selectedBuildingId && buildings.length
         ? (() => {
-            const b = buildings.find(item => item.id === selectedBuildingId || item.code === selectedBuildingId);
-            return b && b.latitude && b.longitude ? [b.latitude, b.longitude] : center;
-          })()
+          const b = buildings.find(item => item.id === selectedBuildingId || item.code === selectedBuildingId);
+          return b && b.latitude && b.longitude ? [b.latitude, b.longitude] : center;
+        })()
         : center;
 
       const map = L.map(mapContainerRef.current, {
@@ -114,12 +114,23 @@ export default function MapView({
               <div style="font-size: 10px; color: #10B981; font-weight: 600;">${building.vacantRoomsCount || 1} phòng trống</div>
             </div>
             
-            <button 
-              id="map-btn-${building.id}" 
-              style="background: #E8920A; color: #ffffff; border: none; border-radius: 6px; padding: 5px 10px; font-size: 11px; font-weight: 700; cursor: pointer;"
-            >
-              Chi tiết →
-            </button>
+            <div style="display: flex; gap: 4px;">
+              <a 
+                href="https://www.google.com/maps/dir/?api=1&destination=${building.latitude},${building.longitude}"
+                target="_blank"
+                rel="noreferrer"
+                title="Chỉ đường Google Maps"
+                style="background: #0F172A; color: #ffffff; text-decoration: none; border-radius: 6px; padding: 5px 8px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center;"
+              >
+                🗺️ Maps
+              </a>
+              <button 
+                id="map-btn-${building.id}" 
+                style="background: #E8920A; color: #ffffff; border: none; border-radius: 6px; padding: 5px 10px; font-size: 11px; font-weight: 700; cursor: pointer;"
+              >
+                Chi tiết →
+              </button>
+            </div>
           </div>
         </div>
       `;

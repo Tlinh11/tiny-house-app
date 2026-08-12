@@ -4,19 +4,22 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node start-dev.js",
     "server": "node server/index.js",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-oauth/google": "^0.13.5",
     "@supabase/supabase-js": "^2.112.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "google-auth-library": "^11.0.0",
     "jsonwebtoken": "^9.0.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.28.0",
+    "nodemailer": "^9.0.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

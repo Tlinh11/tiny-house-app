@@ -1,16 +1,24 @@
-import React, { useState } from 'react';
-import { Search, ShieldCheck, HeartHandshake, Eye, Building2, MapPin, ChevronRight, Award, Users, PhoneCall, Star, Map } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, ShieldCheck, Eye, MapPin, ChevronRight, Star, Map } from 'lucide-react';
 import { DataService } from '../services/dataService';
 import MapView from '../components/MapView';
+import RangeFilterDropdown from '../components/RangeFilterDropdown';
 
-export default function HomePage({ setActiveTab, setSelectedBuildingId }) {
+export default function HomePage({ setActiveTab, setSelectedBuildingId, onSearch }) {
   const [searchDistrict, setSearchDistrict] = useState('Hà Đông');
-  const [searchPrice, setSearchPrice] = useState('all');
+  const [searchMinPrice, setSearchMinPrice] = useState(0);
+  const [searchMaxPrice, setSearchMaxPrice] = useState(20000000);
   const [mapDistrict, setMapDistrict] = useState('all');
 
-  const buildings = DataService.getBuildings();
+  const [buildings, setBuildings] = useState(() => DataService.getBuildings());
+
+  useEffect(() => {
+    const syncData = () => setBuildings(DataService.getBuildings());
+    syncData();
+    const unsubscribe = DataService.subscribe(syncData);
+    return () => unsubscribe();
+  }, []);
   const tinyBuildings = buildings.filter(b => b.isTiny);
-  const partnerBuildings = buildings.filter(b => !b.isTiny);
 
   const mapFilteredBuildings = buildings.filter(b => {
     if (mapDistrict !== 'all' && b.district !== mapDistrict) return false;
@@ -19,6 +27,13 @@ export default function HomePage({ setActiveTab, setSelectedBuildingId }) {
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
+    if (onSearch) {
+      onSearch({
+        district: searchDistrict,
+        minPrice: searchMinPrice,
+        maxPrice: searchMaxPrice
+      });
+    }
     setActiveTab('search');
   };
 
@@ -171,12 +186,20 @@ export default function HomePage({ setActiveTab, setSelectedBuildingId }) {
                 <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748B', display: 'block', marginBottom: 4 }}>
                   KHOẢNG GIÁ THUÊ
                 </label>
-                <select value={searchPrice} onChange={(e) => setSearchPrice(e.target.value)} style={{ width: '100%' }}>
-                  <option value="all">Tất cả mức giá</option>
-                  <option value="3-5">3 - 5 triệu / tháng</option>
-                  <option value="5-8">5 - 8 triệu / tháng</option>
-                  <option value="8-15">Trên 8 triệu / tháng</option>
-                </select>
+                <RangeFilterDropdown
+                  title="Khoảng giá"
+                  popupTitle="Khoảng giá thuê / tháng"
+                  min={0}
+                  max={20000000}
+                  step={500000}
+                  minValue={searchMinPrice}
+                  maxValue={searchMaxPrice}
+                  onChange={({ min, max }) => {
+                    setSearchMinPrice(min);
+                    setSearchMaxPrice(max);
+                  }}
+                  unit="đ"
+                />
               </div>
 
               <button type="submit" className="btn btn-primary" style={{ padding: '12px 28px', alignSelf: 'flex-end', height: 42 }}>

@@ -109,7 +109,7 @@ function transformInitialData() {
     });
   });
 
-  rooms.sort((a, b) => (a.status === 'Có sẵn' ? -1 : 1));
+  rooms.sort((a, _b) => (a.status === 'Có sẵn' ? -1 : 1));
 
   const roles = [
     {
@@ -231,7 +231,7 @@ class DbEngine {
   }
 
   getRooms() {
-    return [...this.store.rooms].sort((a, b) => (a.status === 'Có sẵn' ? -1 : 1));
+    return [...this.store.rooms].sort((a, _b) => (a.status === 'Có sẵn' ? -1 : 1));
   }
 
   saveRoom(roomData) {

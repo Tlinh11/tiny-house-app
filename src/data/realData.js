@@ -157,4 +157,4 @@ rawData.forEach(b => {
 });
 
 // DEFAULT SORT: Available rooms first
-REAL_ROOMS.sort((a, b) => (a.status === 'Có sẵn' ? -1 : 1));
+REAL_ROOMS.sort((a, _b) => (a.status === 'Có sẵn' ? -1 : 1));

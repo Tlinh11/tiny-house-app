@@ -1,17 +1,35 @@
-import React, { useState } from 'react';
-import { MapPin, Share2, Heart, Calendar, Clock, User, Phone, Mail, ShieldCheck, CheckCircle2, Eye, Sparkles, Building2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MapPin, Share2, Heart, Calendar, Phone, ShieldCheck, CheckCircle2, Eye, Sparkles, Building2, X, PlayCircle } from 'lucide-react';
 import { DataService } from '../services/dataService';
 import MapView from '../components/MapView';
+import ImageLightboxModal from '../components/ImageLightboxModal';
 
-export default function RoomDetailPage({ roomId, setActiveTab }) {
-  const room = DataService.getRoomById(roomId) || DataService.getRooms()[0];
-  const building = DataService.getBuildingById(room.buildingId || room.buildingCode) || DataService.getBuildings()[0];
-  const buildingRooms = DataService.getRoomsByBuilding(building.id);
+export default function RoomDetailPage({ roomId, _setActiveTab }) {
+  const [room, setRoom] = useState(() => DataService.getRoomById(roomId) || DataService.getRooms()[0]);
+  const [building, setBuilding] = useState(() => DataService.getBuildingById(room?.buildingId || room?.buildingCode) || DataService.getBuildings()[0]);
+  const [buildingRooms, setBuildingRooms] = useState(() => DataService.getRoomsByBuilding(building?.id));
+
+  useEffect(() => {
+    const syncData = () => {
+      const r = DataService.getRoomById(roomId) || DataService.getRooms()[0];
+      const b = DataService.getBuildingById(r?.buildingId || r?.buildingCode) || DataService.getBuildings()[0];
+      setRoom(r);
+      setBuilding(b);
+      setBuildingRooms(DataService.getRoomsByBuilding(b?.id));
+    };
+    syncData();
+    const unsubscribe = DataService.subscribe(syncData);
+    return () => unsubscribe();
+  }, [roomId]);
 
   const [selectedRoomNumber, setSelectedRoomNumber] = useState(room.roomNumber || '101');
-  const [view360, setView360] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
+
+  // Lightbox & Tour Modal state
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [tourModalOpen, setTourModalOpen] = useState(false);
 
   // Form State
   const [fullName, setFullName] = useState('');
@@ -21,6 +39,9 @@ export default function RoomDetailPage({ roomId, setActiveTab }) {
   const [appointmentTime, setAppointmentTime] = useState('09:00');
 
   const currentRoom = buildingRooms.find(r => r.roomNumber === selectedRoomNumber) || room;
+  const roomImages = currentRoom.images && currentRoom.images.length > 0 
+    ? currentRoom.images 
+    : (building.images && building.images.length > 0 ? building.images : [building.coverImage]);
 
   const handleBookingSubmit = (e) => {
     e.preventDefault();
@@ -215,21 +236,39 @@ export default function RoomDetailPage({ roomId, setActiveTab }) {
           <div>
             {/* Top Photo Gallery Grid */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
-              <div style={{ height: 220, borderRadius: 16, overflow: 'hidden', position: 'relative' }}>
-                <img src={currentRoom.images?.[0] || building.coverImage} alt="Main Room" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div 
+                style={{ height: 220, borderRadius: 16, overflow: 'hidden', position: 'relative', cursor: 'pointer' }}
+                onClick={() => {
+                  setLightboxIndex(0);
+                  setLightboxOpen(true);
+                }}
+              >
+                <img src={roomImages[0] || building.coverImage} alt="Main Room" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 <button 
                   className="btn btn-secondary" 
-                  style={{ position: 'absolute', bottom: 12, right: 12, fontSize: '0.8rem', padding: '6px 12px' }}
-                  onClick={() => setView360(!view360)}
+                  style={{ position: 'absolute', bottom: 12, right: 12, fontSize: '0.8rem', padding: '6px 12px', background: 'rgba(15,23,42,0.85)', color: '#fff' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTourModalOpen(true);
+                  }}
                 >
-                  <Eye size={14} />
-                  <span>{view360 ? "Xem ảnh thường" : "Xem ảnh 360°"}</span>
+                  <Eye size={14} color="#E8920A" />
+                  <span>Xem Tour 360° / Video</span>
                 </button>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                {(currentRoom.images?.slice(0, 4) || building.images.slice(0, 4)).map((img, i) => (
-                  <img key={i} src={img} alt="Thumbnail" style={{ width: '100%', height: 70, borderRadius: 8, objectFit: 'cover' }} />
+                {roomImages.slice(0, 4).map((img, i) => (
+                  <img 
+                    key={i} 
+                    src={img} 
+                    alt="Thumbnail" 
+                    onClick={() => {
+                      setLightboxIndex(i);
+                      setLightboxOpen(true);
+                    }}
+                    style={{ width: '100%', height: 70, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }} 
+                  />
                 ))}
               </div>
             </div>
@@ -339,6 +378,95 @@ export default function RoomDetailPage({ roomId, setActiveTab }) {
           </div>
         </div>
       </div>
+
+      {/* Image Lightbox Modal */}
+      <ImageLightboxModal
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        images={roomImages}
+        currentIndex={lightboxIndex}
+        onIndexChange={setLightboxIndex}
+        title={`Ảnh căn hộ ${selectedRoomNumber} - Tòa ${building.code}`}
+      />
+
+      {/* Virtual Tour 360 / Video Modal */}
+      {tourModalOpen && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            zIndex: 9999,
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20
+          }}
+          onClick={() => setTourModalOpen(false)}
+        >
+          <div 
+            style={{
+              width: '100%',
+              maxWidth: 800,
+              background: '#0F172A',
+              borderRadius: 20,
+              padding: 24,
+              color: '#fff',
+              position: 'relative',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <PlayCircle size={24} color="#E8920A" />
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>
+                  Virtual Tour 360° & Video Căn hộ {selectedRoomNumber}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setTourModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div style={{ height: 400, borderRadius: 12, overflow: 'hidden', background: '#020617', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              <img 
+                src={roomImages[0] || building.coverImage} 
+                alt="Room Tour 360" 
+                style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} 
+              />
+              <div style={{
+                position: 'absolute',
+                background: 'rgba(15, 23, 42, 0.85)',
+                padding: '20px 32px',
+                borderRadius: 16,
+                textAlign: 'center',
+                border: '1px solid rgba(232, 146, 10, 0.4)'
+              }}>
+                <PlayCircle size={48} color="#E8920A" style={{ marginBottom: 12 }} />
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '1.1rem' }}>Trải nghiệm góc nhìn 360° thực tế</h4>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>
+                  Không gian căn hộ {selectedRoomNumber} trang bị đầy đủ nội thất cao cấp Tiny Houses
+                </p>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>💡 Bạn cũng có thể đăng ký lịch hẹn để xem phòng trực tiếp.</span>
+              <button 
+                className="btn btn-primary"
+                onClick={() => setTourModalOpen(false)}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

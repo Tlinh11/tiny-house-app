@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ZaloWidget from './components/ZaloWidget';
@@ -21,9 +21,24 @@ export default function App() {
   const [selectedBuildingId, setSelectedBuildingId] = useState('TN007');
   const [selectedRoomId, setSelectedRoomId] = useState('DT007-101');
   const [selectedBlogId, setSelectedBlogId] = useState(null);
+  const [, setTick] = useState(0);
 
   // User Auth State
   const [currentUser, setCurrentUser] = useState(() => DataService.getCurrentUser());
+
+  // Realtime Backend API Data Synchronization & Event Listener
+  useEffect(() => {
+    // Fetch live backend data from Express API server
+    DataService.fetchAllAsync();
+
+    // Subscribe to data changes
+    const unsubscribe = DataService.subscribe(() => {
+      setTick(t => t + 1);
+      setCurrentUser(DataService.getCurrentUser());
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Auth modal state
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -43,6 +58,13 @@ export default function App() {
     setCurrentUser(null);
     if (activeTab === 'cms') setActiveTab('home');
   };
+
+  // Global Search Filter State (carried from HomePage to SearchPage)
+  const [searchFilters, setSearchFilters] = useState({
+    district: 'all',
+    minPrice: 0,
+    maxPrice: 20000000
+  });
 
   const isCmsMode = activeTab === 'cms';
 
@@ -64,14 +86,17 @@ export default function App() {
         {activeTab === 'home' && (
           <HomePage 
             setActiveTab={setActiveTab} 
-            setSelectedBuildingId={setSelectedBuildingId} 
+            setSelectedBuildingId={setSelectedBuildingId}
+            onSearch={(filters) => setSearchFilters(filters)}
           />
         )}
 
         {activeTab === 'search' && (
           <SearchPage 
             setActiveTab={setActiveTab} 
-            setSelectedBuildingId={setSelectedBuildingId} 
+            setSelectedBuildingId={setSelectedBuildingId}
+            searchFilters={searchFilters}
+            setSearchFilters={setSearchFilters}
           />
         )}
 
@@ -130,6 +155,7 @@ export default function App() {
 
       {/* Auth Modal */}
       <AuthModal 
+        key={`${authModalMode}-${authModalOpen}`}
         isOpen={authModalOpen} 
         mode={authModalMode} 
         onClose={() => setAuthModalOpen(false)} 
