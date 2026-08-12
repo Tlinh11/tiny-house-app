@@ -1,5 +1,5 @@
-// Real Data Transformer from buildings_and_rooms.json
-import rawData from '../../buildings_and_rooms.json';
+// Real Data Transformer from buildings_and_rooms copy.json
+import rawData from '../../buildings_and_rooms copy.json';
 
 // Coordinates mapping for buildings missing explicit lat/lng in raw JSON
 const LAT_LNG_COORDINATES = {
