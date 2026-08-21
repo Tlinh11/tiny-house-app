@@ -3,29 +3,6 @@
  * Ensures consistent business rules across Frontend, CMS, and Services.
  */
 
-// 0. Normalize room type name to avoid accidental duplicates (e.g. "Studio ban công" vs "Studio - Ban công")
-export function normalizeRoomTypeName(name) {
-  if (!name || typeof name !== 'string') return 'Studio khép kín';
-  const clean = name.trim().toLowerCase().replace(/\s+/g, ' ');
-  
-  if (clean.includes('ban công') || clean.includes('ban cong')) {
-    return 'Studio - Ban công';
-  }
-  if (clean.includes('gác xép') || clean.includes('gac xep')) {
-    return 'Studio - Gác xép';
-  }
-  if (clean.includes('2n1k') || clean.includes('2 phòng ngủ') || clean.includes('2pn')) {
-    return 'Căn 2N1K';
-  }
-  if (clean.includes('1n1k') || clean.includes('1 phòng ngủ') || clean.includes('1pn')) {
-    return 'Căn 1N1K';
-  }
-  if (clean === 'studio' || clean.startsWith('studio khép kín') || clean.startsWith('studio khep kin')) {
-    return 'Studio';
-  }
-  return name.trim();
-}
-
 // 1. Parse and deduplicate raw room number input string (e.g. "201, 202; 203 204")
 export function parseRoomNumbers(input, existingRooms = []) {
   if (!input || typeof input !== 'string') return existingRooms;
@@ -96,20 +73,27 @@ export function getBuildingPriceRange(building, allRooms = []) {
   };
 }
 
-// 6. Group raw room list into clean, normalized, deduplicated Room Types
+export function normalizeTypeName(name = '') {
+  return (name || '')
+    .toLowerCase()
+    .replace(/[\s\-_–—]+/g, ' ')
+    .trim();
+}
+
+// 6. Group raw room list into clean, deduplicated Room Types
 export function groupRoomsIntoTypes(rooms = []) {
   const map = new Map();
 
   rooms.forEach(r => {
-    const rawName = r.type || r.name || 'Studio';
-    const typeKey = normalizeRoomTypeName(rawName);
+    const rawType = (r.type || r.name || 'Studio khép kín').trim();
+    const normKey = normalizeTypeName(rawType);
     const roomsList = getRoomTypeNumbers(r);
 
-    if (!map.has(typeKey)) {
-      map.set(typeKey, {
+    if (!map.has(normKey)) {
+      map.set(normKey, {
         ...r,
-        type: typeKey,
-        name: typeKey,
+        type: rawType,
+        name: rawType,
         specificRooms: roomsList,
         room_numbers: roomsList,
         available_rooms: roomsList.length,
@@ -117,10 +101,12 @@ export function groupRoomsIntoTypes(rooms = []) {
         status: roomsList.length > 0 ? (r.status || 'Có sẵn') : 'Hết phòng'
       });
     } else {
-      const existing = map.get(typeKey);
+      const existing = map.get(normKey);
       const combined = Array.from(new Set([...existing.specificRooms, ...roomsList]));
-      map.set(typeKey, {
+      map.set(normKey, {
         ...existing,
+        type: existing.type.length >= rawType.length ? existing.type : rawType,
+        name: existing.name.length >= rawType.length ? existing.name : rawType,
         specificRooms: combined,
         room_numbers: combined,
         available_rooms: combined.length,

@@ -1,7 +1,6 @@
 // Data Service for local state & Backend API Server Realtime integration
 import { INITIAL_BUILDINGS, INITIAL_ROOMS, INITIAL_BOOKINGS, INITIAL_CTVS, INITIAL_BLOGS } from '../data/mockData';
 import { ApiClient } from './apiClient';
-import { normalizeRoomTypeName } from '../utils/roomHierarchy';
 
 const STORAGE_KEYS = {
   BUILDINGS: 'tinyhouse_buildings_v8',
@@ -111,17 +110,11 @@ const getStoredItem = (key, initialValue) => {
 function enrichRoomsList(roomsList = []) {
   if (!Array.isArray(roomsList) || roomsList.length === 0) return INITIAL_ROOMS;
 
-  const map = new Map();
-
-  roomsList.forEach(r => {
-    const rawType = r.type || r.name || 'Studio';
-    const normType = normalizeRoomTypeName(rawType);
-    const bldCode = r.buildingCode || r.buildingName || '';
-    const key = `${bldCode}_${normType}`;
-
+  return roomsList.map(r => {
+    // Match against INITIAL_ROOMS to ensure all room_numbers from export_all_data copy.json are preserved
     const initMatch = INITIAL_ROOMS.find(ir => 
       ir.id === r.id || 
-      (ir.buildingCode === bldCode && normalizeRoomTypeName(ir.type) === normType)
+      (ir.buildingCode === r.buildingCode && (ir.type === r.type || ir.name === r.type))
     );
 
     let specificRooms = r.specificRooms;
@@ -137,34 +130,16 @@ function enrichRoomsList(roomsList = []) {
 
     const cleanRooms = Array.from(new Set(specificRooms.filter(Boolean)));
 
-    if (!map.has(key)) {
-      map.set(key, {
-        ...r,
-        type: normType,
-        name: normType,
-        specificRooms: cleanRooms,
-        room_numbers: cleanRooms,
-        available_rooms: cleanRooms.length,
-        vacantCount: cleanRooms.length,
-        status: cleanRooms.length > 0 ? (r.status || 'Có sẵn') : 'Hết phòng',
-        roomNumber: cleanRooms[0] || r.roomNumber || '501'
-      });
-    } else {
-      // Merge unique rooms without creating duplicates
-      const existing = map.get(key);
-      const combined = Array.from(new Set([...existing.specificRooms, ...cleanRooms]));
-      map.set(key, {
-        ...existing,
-        specificRooms: combined,
-        room_numbers: combined,
-        available_rooms: combined.length,
-        vacantCount: combined.length,
-        status: combined.length > 0 ? (existing.status || 'Có sẵn') : 'Hết phòng'
-      });
-    }
+    return {
+      ...r,
+      specificRooms: cleanRooms,
+      room_numbers: cleanRooms,
+      available_rooms: cleanRooms.length,
+      vacantCount: cleanRooms.length,
+      status: cleanRooms.length > 0 ? (r.status || 'Có sẵn') : 'Hết phòng',
+      roomNumber: cleanRooms[0] || r.roomNumber || '501'
+    };
   });
-
-  return Array.from(map.values());
 }
 
 const setStoredItem = (key, value) => {
@@ -266,7 +241,7 @@ export const DataService = {
   },
 
   getRoomsByBuilding: (buildingIdOrCode) => {
-    const rooms = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
+    const rooms = DataService.getRooms();
     if (!buildingIdOrCode) return rooms;
     return rooms.filter(r => 
       r.buildingId === buildingIdOrCode || 
@@ -276,7 +251,7 @@ export const DataService = {
   },
 
   getRoomById: (roomId) => {
-    const rooms = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
+    const rooms = DataService.getRooms();
     if (!roomId) return rooms[0];
     return rooms.find(r => r.id === roomId || r.id.includes(roomId)) || rooms[0];
   },
