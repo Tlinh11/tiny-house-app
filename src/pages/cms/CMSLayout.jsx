@@ -733,10 +733,19 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
     }
   };
 
-  const handleConfirmBooking = (id) => {
-    const updated = DataService.updateBookingStatus(id, 'Đã xác nhận');
-    setBookings(updated);
-    showToast(`Đã xác nhận lịch xem phòng #${id}`);
+  const [isSyncingSupabase, setIsSyncingSupabase] = useState(false);
+  const handleSyncSupabase = async () => {
+    setIsSyncingSupabase(true);
+    showToast('⏳ Đang đồng bộ dữ liệu từ Supabase Cloud...');
+    const res = await DataService.syncFromSupabase();
+    setIsSyncingSupabase(false);
+    if (res.success) {
+      setBuildings(DataService.getBuildings());
+      setRooms(DataService.getRooms());
+      showToast(`✅ Đã đồng bộ thành công ${res.count} loại phòng từ Supabase!`);
+    } else {
+      showToast(`⚠️ Đồng bộ cảnh báo: ${res.error}`);
+    }
   };
 
   return (
@@ -1089,6 +1098,16 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ background: '#0F172A', color: '#ffffff', border: 'none', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, padding: '8px 16px', borderRadius: 10 }}
+                  onClick={handleSyncSupabase}
+                  disabled={isSyncingSupabase}
+                  title="Kéo và làm mới dữ liệu chuẩn 100% từ Supabase Cloud"
+                >
+                  <RefreshCw size={16} className={isSyncingSupabase ? 'animate-spin' : ''} />
+                  <span>{isSyncingSupabase ? 'Đang đồng bộ...' : '🔄 Đồng bộ Supabase'}</span>
+                </button>
                 {selectedBuildingForRooms && (
                   <button 
                     className="btn btn-secondary" 

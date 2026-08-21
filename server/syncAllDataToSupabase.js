@@ -35,9 +35,18 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 const rawJsonPath = path.join(__dirname, '..', 'export_all_data copy.json');
 const rawContent = fs.readFileSync(rawJsonPath, 'utf-8');
 const exportData = JSON.parse(rawContent);
-const rawBuildings = Array.isArray(exportData) ? exportData : (exportData.buildings || []);
+const rawList = Array.isArray(exportData) ? exportData : (exportData.buildings || []);
 
-console.log(`📦 Loaded ${rawBuildings.length} buildings from export_all_data copy.json`);
+// Deduplicate by ID
+const seenIds = new Set();
+const rawBuildings = rawList.filter(b => {
+  const key = b.id || b.name;
+  if (!key || seenIds.has(key)) return false;
+  seenIds.add(key);
+  return true;
+});
+
+console.log(`📦 Loaded ${rawBuildings.length} unique buildings from export_all_data copy.json`);
 
 async function syncToSupabase() {
   console.log(`🚀 Starting Full Data Backup to Supabase (${SUPABASE_URL})...\n`);
@@ -116,10 +125,10 @@ async function syncToSupabase() {
         building_id: targetBuildingId,
         building_code: code,
         building_name: `Tòa nhà ${code}`,
-        room_number: roomNumbers[0] || '101',
+        room_number: JSON.stringify(roomNumbers),
         status: (rt.available_rooms > 0 || roomNumbers.length > 0) ? 'Có sẵn' : 'Đã thuê',
         price: rt.price || 3500000,
-        type: rt.name || 'Studio khép kín',
+        type: rt.name?.trim() || 'Studio khép kín',
         area: rt.area || 25,
         max_occupants: rt.max_occupants || 2,
         images: rt.images || []

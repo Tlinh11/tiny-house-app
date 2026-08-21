@@ -101,21 +101,42 @@ export const SupabaseDb = {
       console.error('[SupabaseDb] getRooms error:', error.message);
       return null;
     }
-    return data.map(r => ({
-      id: r.id,
-      roomTypeId: r.room_type_id,
-      buildingId: r.building_id,
-      buildingCode: r.building_code,
-      buildingName: r.building_name,
-      roomNumber: r.room_number,
-      specificRooms: r.room_numbers || (r.room_number ? [r.room_number] : ['501']),
-      status: r.status,
-      price: r.price,
-      type: r.type,
-      area: r.area,
-      maxOccupants: r.max_occupants,
-      images: r.images || []
-    }));
+    return data.map(r => {
+      let parsedRooms = [];
+      if (r.room_number) {
+        try {
+          if (r.room_number.startsWith('[')) {
+            parsedRooms = JSON.parse(r.room_number);
+          } else if (r.room_number.includes(',')) {
+            parsedRooms = r.room_number.split(',').map(s => s.trim());
+          } else {
+            parsedRooms = [r.room_number];
+          }
+        } catch {
+          parsedRooms = [r.room_number];
+        }
+      }
+      if (parsedRooms.length === 0) parsedRooms = ['101', '102'];
+
+      return {
+        id: r.id,
+        roomTypeId: r.room_type_id || r.id,
+        buildingId: r.building_id,
+        buildingCode: r.building_code,
+        buildingName: r.building_name,
+        roomNumber: parsedRooms[0] || '101',
+        specificRooms: parsedRooms,
+        room_numbers: parsedRooms,
+        available_rooms: parsedRooms.length,
+        vacantCount: parsedRooms.length,
+        status: parsedRooms.length > 0 ? (r.status || 'Có sẵn') : 'Hết phòng',
+        price: r.price || 3500000,
+        type: r.type || 'Studio khép kín',
+        area: r.area || 25,
+        maxOccupants: r.max_occupants || 2,
+        images: r.images || []
+      };
+    });
   },
 
   async saveRoom(roomData) {
@@ -130,7 +151,7 @@ export const SupabaseDb = {
       building_id: roomData.buildingId,
       building_code: roomData.buildingCode,
       building_name: roomData.buildingName,
-      room_number: specificRooms[0] || '501',
+      room_number: JSON.stringify(specificRooms),
       status: specificRooms.length > 0 ? (roomData.status || 'Có sẵn') : 'Hết phòng',
       price: roomData.price || 0,
       type: roomData.type || 'Studio',

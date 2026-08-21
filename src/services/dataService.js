@@ -202,6 +202,26 @@ export const DataService = {
     }
   },
 
+  // Hard refresh / Force Sync directly from Supabase Backend
+  syncFromSupabase: async () => {
+    try {
+      const [buildings, rooms] = await Promise.all([
+        ApiClient.get('/buildings'),
+        ApiClient.get('/rooms')
+      ]);
+      if (buildings && Array.isArray(buildings) && buildings.length > 0) {
+        setStoredItem(STORAGE_KEYS.BUILDINGS, buildings);
+      }
+      if (rooms && Array.isArray(rooms) && rooms.length > 0) {
+        setStoredItem(STORAGE_KEYS.ROOMS, enrichRoomsList(rooms));
+      }
+      return { success: true, count: rooms?.length || 0 };
+    } catch (e) {
+      console.error('syncFromSupabase error:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
   // Buildings (Sorted default: highest vacant rooms first)
   getBuildings: () => {
     const list = getStoredItem(STORAGE_KEYS.BUILDINGS, INITIAL_BUILDINGS);
