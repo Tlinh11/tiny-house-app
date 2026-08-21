@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { DataService } from '../services/dataService';
 import ImageLightboxModal from '../components/ImageLightboxModal';
-import { groupRoomsIntoTypes, getRoomTypeNumbers, getValidImageUrl } from '../utils/roomHierarchy';
+import { getRoomTypeNumbers, getValidImageUrl } from '../utils/roomHierarchy';
 
 // Custom Amenity Item with rounded bordered box matching user screenshot
 function AmenityItem({ name }) {
@@ -81,8 +81,8 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
     return () => unsubscribe();
   }, [roomId]);
 
-  // Deduplicate building rooms into unique Room Types (Loại phòng)
-  const availableRoomTypes = groupRoomsIntoTypes(buildingRooms && buildingRooms.length > 0 ? buildingRooms : [room]);
+  // Direct list of room types in building
+  const availableRoomTypes = buildingRooms && buildingRooms.length > 0 ? buildingRooms : [room];
   
   // Active Room Type ID
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState(room.id || availableRoomTypes[0]?.id);

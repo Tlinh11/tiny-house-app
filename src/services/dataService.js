@@ -1,18 +1,17 @@
 // Data Service for local state & Backend API Server Realtime integration
 import { INITIAL_BUILDINGS, INITIAL_ROOMS, INITIAL_BOOKINGS, INITIAL_CTVS, INITIAL_BLOGS } from '../data/mockData';
 import { ApiClient } from './apiClient';
-
-import { groupRoomsIntoTypes, getValidImageUrl, formatRoomTypeName } from '../utils/roomHierarchy';
+import { getValidImageUrl, getRoomTypeNumbers } from '../utils/roomHierarchy';
 
 const STORAGE_KEYS = {
-  BUILDINGS: 'tinyhouse_buildings_v8',
-  ROOMS: 'tinyhouse_rooms_v8',
-  BOOKINGS: 'tinyhouse_bookings_v8',
-  CTVS: 'tinyhouse_ctvs_v8',
-  BLOGS: 'tinyhouse_blogs_v8',
-  ROLES: 'tinyhouse_roles_v8',
-  USERS: 'tinyhouse_users_v8',
-  CURRENT_USER: 'tinyhouse_current_user_v8',
+  BUILDINGS: 'tinyhouse_db_buildings_v1',
+  ROOMS: 'tinyhouse_db_rooms_v1',
+  BOOKINGS: 'tinyhouse_db_bookings_v1',
+  CTVS: 'tinyhouse_db_ctvs_v1',
+  BLOGS: 'tinyhouse_db_blogs_v1',
+  ROLES: 'tinyhouse_db_roles_v1',
+  USERS: 'tinyhouse_db_users_v1',
+  CURRENT_USER: 'tinyhouse_db_current_user_v1',
 };
 
 // Initial Roles Definition
@@ -22,77 +21,66 @@ export const INITIAL_ROLES = [
     name: "Quản trị viên (Super Admin)",
     code: "admin",
     description: "Toàn quyền quản trị hệ thống, danh mục tòa nhà, phòng, lịch hẹn, CTV và Phân quyền",
-    allowedScreens: ['dashboard', 'buildings', 'rooms', 'bookings', 'ctv', 'permissions', 'database']
+    allowedScreens: ['dashboard', 'buildings', 'rooms', 'bookings', 'ctvs', 'permissions', 'database']
   },
   {
     id: "role_manager",
-    name: "Quản lý Tòa nhà",
-    code: "building_manager",
-    description: "Quản lý tòa nhà, danh sách phòng, cập nhật trạng thái trống và lịch xem phòng",
-    allowedScreens: ['dashboard', 'buildings', 'rooms', 'bookings']
+    name: "Quản lý Vận hành (Manager)",
+    code: "manager",
+    description: "Quản lý tòa nhà, phòng, lịch hẹn xem phòng của khách hàng và danh sách CTV",
+    allowedScreens: ['dashboard', 'buildings', 'rooms', 'bookings', 'ctvs']
+  },
+  {
+    id: "role_staff",
+    name: "Nhân viên Vận hành / Lễ tân (Staff)",
+    code: "staff",
+    description: "Xem danh sách phòng trống, xem lịch hẹn xem phòng của khách hàng và theo dõi hoa hồng",
+    allowedScreens: ['dashboard', 'rooms', 'bookings']
   },
   {
     id: "role_ctv",
-    name: "Cộng tác viên Sale (CTV)",
-    code: "ctv_sale",
-    description: "Xem danh sách phòng trống, xem lịch hẹn xem phòng của khách hàng và theo dõi hoa hồng",
-    allowedScreens: ['dashboard', 'rooms', 'bookings', 'ctv']
-  },
-  {
-    id: "role_accountant",
-    name: "Kế toán & Thu chi",
-    code: "accountant",
-    description: "Xem tổng quan doanh thu, bảng kê hoa hồng CTV và xuất dữ liệu",
-    allowedScreens: ['dashboard', 'ctv', 'database']
+    name: "Cộng tác viên (CTV Sale)",
+    code: "ctv",
+    description: "Màn hình riêng cho CTV: Đặt lịch xem phòng cho khách, xem hoa hồng và phòng trống khả dụng",
+    allowedScreens: ['dashboard', 'rooms', 'bookings']
   }
 ];
 
-// Initial Users Definition
+// Initial Users
 export const INITIAL_USERS = [
   {
-    id: "usr_tailinh_admin",
-    name: "Tài Linh Lê Phạm",
-    email: "tailinh@tinyhouse.vn",
-    phone: "0988123456",
-    roleCode: "admin",
-    roleName: "Quản trị viên (Super Admin)",
-    status: "Hoạt động",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
-  },
-  {
-    id: "usr_admin",
-    name: "Đỗ Thảo Nguyên",
+    id: "usr_superadmin",
+    name: "Super Admin",
     email: "admin@tinyhouse.vn",
-    phone: "0167423824",
+    phone: "0988888888",
     roleCode: "admin",
     roleName: "Quản trị viên (Super Admin)",
     status: "Hoạt động",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+    password: "admin"
   },
   {
-    id: "usr_ctv_1",
-    name: "Nguyễn Hoàng Nam",
-    email: "nam.nh@gmail.com",
-    phone: "0901112233",
-    roleCode: "ctv_sale",
-    roleName: "Cộng tác viên Sale (CTV)",
+    id: "usr_thuy_manager",
+    name: "Thu Thủy - Quản lý",
+    email: "thuthuy@tinyhouse.vn",
+    phone: "0977112233",
+    roleCode: "manager",
+    roleName: "Quản lý Vận hành (Manager)",
     status: "Hoạt động",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
+    password: "123"
   },
   {
-    id: "usr_manager",
-    name: "Trần Anh Quân",
-    email: "quan.ta@tinyhouse.vn",
-    phone: "0987654321",
-    roleCode: "building_manager",
-    roleName: "Quản lý Tòa nhà",
+    id: "usr_huyen_host",
+    name: "Ms. Huyền (Host TH0008)",
+    email: "huyen.th0008@tinyhouse.vn",
+    phone: "0386570401",
+    roleCode: "staff",
+    roleName: "Nhân viên Vận hành / Lễ tân (Staff)",
     status: "Hoạt động",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80"
+    password: "123"
   }
 ];
 
 const listeners = new Set();
-
 const notifyListeners = () => {
   listeners.forEach(fn => {
     try { fn(); } catch (e) { console.error('DataService listener error:', e); }
@@ -108,41 +96,6 @@ const getStoredItem = (key, initialValue) => {
     return initialValue;
   }
 };
-
-function enrichRoomsList(roomsList = []) {
-  if (!Array.isArray(roomsList) || roomsList.length === 0) return INITIAL_ROOMS;
-
-  return roomsList.map(r => {
-    // Match against INITIAL_ROOMS to ensure all room_numbers from export_all_data copy.json are preserved
-    const initMatch = INITIAL_ROOMS.find(ir => 
-      ir.id === r.id || 
-      (ir.buildingCode === r.buildingCode && (ir.type === r.type || ir.name === r.type))
-    );
-
-    let specificRooms = r.specificRooms;
-    if (!specificRooms || !Array.isArray(specificRooms) || specificRooms.length <= 1) {
-      if (initMatch?.specificRooms && initMatch.specificRooms.length > 0) {
-        specificRooms = initMatch.specificRooms;
-      } else if (r.room_numbers && Array.isArray(r.room_numbers) && r.room_numbers.length > 0) {
-        specificRooms = r.room_numbers;
-      } else {
-        specificRooms = r.roomNumber ? [r.roomNumber] : ['501'];
-      }
-    }
-
-    const cleanRooms = Array.from(new Set(specificRooms.filter(Boolean)));
-
-    return {
-      ...r,
-      specificRooms: cleanRooms,
-      room_numbers: cleanRooms,
-      available_rooms: cleanRooms.length,
-      vacantCount: cleanRooms.length,
-      status: cleanRooms.length > 0 ? (r.status || 'Có sẵn') : 'Hết phòng',
-      roomNumber: cleanRooms[0] || r.roomNumber || '501'
-    };
-  });
-}
 
 const setStoredItem = (key, value) => {
   try {
@@ -174,7 +127,7 @@ export const DataService = {
         setStoredItem(STORAGE_KEYS.BUILDINGS, buildings);
       }
       if (rooms && Array.isArray(rooms) && rooms.length > 0) {
-        setStoredItem(STORAGE_KEYS.ROOMS, enrichRoomsList(rooms));
+        setStoredItem(STORAGE_KEYS.ROOMS, rooms);
       }
       if (bookings && Array.isArray(bookings)) {
         setStoredItem(STORAGE_KEYS.BOOKINGS, bookings);
@@ -184,25 +137,13 @@ export const DataService = {
       }
       if (users && Array.isArray(users) && users.length > 0) {
         setStoredItem(STORAGE_KEYS.USERS, users);
-        
-        // Sync active user's role from live users array
-        const activeUser = getStoredItem(STORAGE_KEYS.CURRENT_USER, null);
-        if (activeUser) {
-          const matchedUser = users.find(u => 
-            (u.email && activeUser.email && u.email.toLowerCase() === activeUser.email.toLowerCase()) ||
-            u.id === activeUser.id
-          );
-          if (matchedUser) {
-            setStoredItem(STORAGE_KEYS.CURRENT_USER, matchedUser);
-          }
-        }
       }
     } catch (err) {
-      console.warn('[DataService] fetchAllAsync failed, using cached storage:', err);
+      console.warn('[DataService] fetchAllAsync warning:', err);
     }
   },
 
-  // Hard refresh / Force Sync directly from Supabase Backend
+  // Force Sync directly from Supabase Backend
   syncFromSupabase: async () => {
     try {
       const [buildings, rooms] = await Promise.all([
@@ -213,7 +154,7 @@ export const DataService = {
         setStoredItem(STORAGE_KEYS.BUILDINGS, buildings);
       }
       if (rooms && Array.isArray(rooms) && rooms.length > 0) {
-        setStoredItem(STORAGE_KEYS.ROOMS, enrichRoomsList(rooms));
+        setStoredItem(STORAGE_KEYS.ROOMS, rooms);
       }
       return { success: true, count: rooms?.length || 0 };
     } catch (e) {
@@ -222,12 +163,12 @@ export const DataService = {
     }
   },
 
-  // Buildings (Sorted default: highest vacant rooms first)
+  // Buildings
   getBuildings: () => {
     const list = getStoredItem(STORAGE_KEYS.BUILDINGS, INITIAL_BUILDINGS);
     return [...list].sort((a, b) => (b.vacantRoomsCount || 0) - (a.vacantRoomsCount || 0));
   },
-  
+
   getBuildingById: (id) => {
     const list = getStoredItem(STORAGE_KEYS.BUILDINGS, INITIAL_BUILDINGS);
     if (!id) return list[0];
@@ -246,301 +187,160 @@ export const DataService = {
     }
     setStoredItem(STORAGE_KEYS.BUILDINGS, updated);
     
-    // API POST to backend Express server in background
-    ApiClient.post('/buildings', buildingData).then(apiRes => {
-      if (apiRes && Array.isArray(apiRes)) {
-        setStoredItem(STORAGE_KEYS.BUILDINGS, apiRes);
-      }
-    }).catch(err => console.warn('[DataService] saveBuilding API warning:', err.message));
+    // API POST to backend in background
+    ApiClient.post('/buildings', buildingData).catch(err => console.warn('saveBuilding API:', err.message));
+    return updated;
+  },
 
+  deleteBuilding: (buildingId) => {
+    const list = getStoredItem(STORAGE_KEYS.BUILDINGS, INITIAL_BUILDINGS);
+    const updated = list.filter(b => b.id !== buildingId && b.code !== buildingId);
+    setStoredItem(STORAGE_KEYS.BUILDINGS, updated);
+    ApiClient.delete(`/buildings/${buildingId}`).catch(err => console.warn('deleteBuilding API:', err.message));
     return updated;
   },
 
   // Rooms
   getRooms: () => {
-    const raw = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
-    return groupRoomsIntoTypes(enrichRoomsList(raw));
+    return getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
   },
 
   getRoomsByBuilding: (buildingIdOrCode) => {
-    const raw = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
-    const enriched = enrichRoomsList(raw);
-    if (!buildingIdOrCode) return groupRoomsIntoTypes(enriched);
-
+    const rooms = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
+    if (!buildingIdOrCode) return rooms;
     const bId = typeof buildingIdOrCode === 'object' ? (buildingIdOrCode.id || buildingIdOrCode.code) : buildingIdOrCode;
-    const filtered = enriched.filter(r => 
+    return rooms.filter(r => 
       r.buildingId === bId || 
       r.buildingCode === bId ||
       r.buildingName?.includes(bId)
     );
-    return groupRoomsIntoTypes(filtered);
   },
 
   getRoomById: (roomId) => {
-    const rooms = DataService.getRooms();
+    const rooms = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
     if (!roomId) return rooms[0];
     return rooms.find(r => r.id === roomId || r.id.includes(roomId)) || rooms[0];
   },
 
   saveRoom: (roomData) => {
     const rooms = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
-    const index = rooms.findIndex(r => r.id === roomData.id);
-
-    const specificRooms = roomData.specificRooms && Array.isArray(roomData.specificRooms)
-      ? Array.from(new Set(roomData.specificRooms))
-      : (roomData.roomNumber ? [roomData.roomNumber] : ['501']);
+    const specificRooms = getRoomTypeNumbers(roomData);
 
     const roomPayload = {
       ...roomData,
+      id: roomData.id || `RM-${Date.now()}`,
       specificRooms: specificRooms,
       room_numbers: specificRooms,
       available_rooms: specificRooms.length,
       vacantCount: specificRooms.length,
       status: specificRooms.length > 0 ? (roomData.status || 'Có sẵn') : 'Hết phòng',
-      roomNumber: specificRooms[0] || roomData.roomNumber || '501'
+      roomNumber: specificRooms[0] || roomData.roomNumber || '101'
     };
 
-    let updated;
+    const index = rooms.findIndex(r => r.id === roomPayload.id);
+    let updatedRooms;
     if (index >= 0) {
-      updated = [...rooms];
-      updated[index] = { ...updated[index], ...roomPayload };
+      updatedRooms = [...rooms];
+      updatedRooms[index] = { ...updatedRooms[index], ...roomPayload };
     } else {
-      updated = [...rooms, { ...roomPayload, id: roomPayload.id || `RM-${Date.now()}` }];
+      updatedRooms = [...rooms, roomPayload];
     }
-    setStoredItem(STORAGE_KEYS.ROOMS, updated);
+    setStoredItem(STORAGE_KEYS.ROOMS, updatedRooms);
 
-    // Also update target building's vacantRoomsCount
+    // Recalculate parent building's vacantRoomsCount
     const targetBuildingCode = roomPayload.buildingCode;
     if (targetBuildingCode) {
-      const bldRooms = updated.filter(r => r.buildingCode === targetBuildingCode || r.buildingId === targetBuildingCode);
-      const totalVacantInBld = bldRooms.reduce((acc, r) => acc + (r.specificRooms?.length || (r.status === 'Có sẵn' ? 1 : 0)), 0);
-
       const buildings = getStoredItem(STORAGE_KEYS.BUILDINGS, INITIAL_BUILDINGS);
       const bIndex = buildings.findIndex(b => b.code === targetBuildingCode || b.id === targetBuildingCode);
       if (bIndex >= 0) {
+        const bldRooms = updatedRooms.filter(r => r.buildingCode === targetBuildingCode || r.buildingId === targetBuildingCode);
+        const totalVacantInBld = bldRooms.reduce((acc, r) => acc + (r.specificRooms?.length || 0), 0);
         buildings[bIndex] = { ...buildings[bIndex], vacantRoomsCount: totalVacantInBld };
         setStoredItem(STORAGE_KEYS.BUILDINGS, buildings);
       }
     }
 
-    // API POST to backend in background
-    ApiClient.post('/rooms', roomPayload).catch(err => console.warn('[DataService] saveRoom API warning:', err.message));
+    ApiClient.post('/rooms', roomPayload).catch(err => console.warn('saveRoom API:', err.message));
+    return updatedRooms;
+  },
 
+  deleteRoom: (roomId) => {
+    const rooms = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
+    const updated = rooms.filter(r => r.id !== roomId);
+    setStoredItem(STORAGE_KEYS.ROOMS, updated);
+    ApiClient.delete(`/rooms/${roomId}`).catch(err => console.warn('deleteRoom API:', err.message));
     return updated;
   },
 
-  // Bookings (Viewing Appointments)
-  getBookings: () => {
-    return getStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
-  },
-
-  createBooking: (booking) => {
-    const bookings = getStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
+  // Bookings
+  getBookings: () => getStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS),
+  createBooking: (bookingData) => {
+    const list = getStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
     const newBooking = {
-      ...booking,
-      id: `BK-${Math.floor(1000 + Math.random() * 9000)}`,
-      status: 'Chờ xác nhận',
-      createdAt: new Date().toISOString().split('T')[0]
+      ...bookingData,
+      id: `BK-${Date.now().toString().slice(-4)}`,
+      createdAt: new Date().toISOString().split('T')[0],
+      status: 'Chờ xác nhận'
     };
-    const updated = [newBooking, ...bookings];
+    const updated = [newBooking, ...list];
     setStoredItem(STORAGE_KEYS.BOOKINGS, updated);
-
-    // API POST to backend Express server in background
-    ApiClient.post('/bookings', booking).then(async (apiRes) => {
-      if (apiRes) {
-        const freshBookings = await ApiClient.get('/bookings');
-        if (freshBookings && Array.isArray(freshBookings)) {
-          setStoredItem(STORAGE_KEYS.BOOKINGS, freshBookings);
-        }
-      }
-    }).catch(err => console.warn('[DataService] createBooking API warning:', err.message));
-
-    return newBooking;
-  },
-
-  updateBookingStatus: (id, newStatus) => {
-    const bookings = getStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
-    const updated = bookings.map(b => b.id === id ? { ...b, status: newStatus } : b);
-    setStoredItem(STORAGE_KEYS.BOOKINGS, updated);
-
-    // API PUT to backend Express server in background
-    ApiClient.put(`/bookings/${id}/status`, { status: newStatus }).then(apiRes => {
-      if (apiRes && Array.isArray(apiRes)) {
-        setStoredItem(STORAGE_KEYS.BOOKINGS, apiRes);
-      }
-    }).catch(err => console.warn('[DataService] updateBookingStatus API warning:', err.message));
-
+    ApiClient.post('/bookings', newBooking).catch(err => console.warn('createBooking API:', err.message));
     return updated;
   },
+  updateBookingStatus: (id, status) => {
+    const list = getStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
+    const updated = list.map(b => b.id === id ? { ...b, status } : b);
+    setStoredItem(STORAGE_KEYS.BOOKINGS, updated);
+    return updated;
+  },
+
+  // Roles & Users
+  getRoles: () => getStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES),
+  saveRole: (roleData) => {
+    const list = getStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES);
+    const index = list.findIndex(r => r.id === roleData.id || r.code === roleData.code);
+    let updated;
+    if (index >= 0) {
+      updated = [...list];
+      updated[index] = { ...updated[index], ...roleData };
+    } else {
+      updated = [...list, { ...roleData, id: roleData.id || `role_${Date.now()}` }];
+    }
+    setStoredItem(STORAGE_KEYS.ROLES, updated);
+    return updated;
+  },
+  deleteRole: (roleId) => {
+    const list = getStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES);
+    const updated = list.filter(r => r.id !== roleId && r.code !== roleId);
+    setStoredItem(STORAGE_KEYS.ROLES, updated);
+    return updated;
+  },
+  getUsers: () => getStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS),
+  saveUser: (userData) => {
+    const list = getStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS);
+    const index = list.findIndex(u => u.id === userData.id || (u.email && u.email === userData.email));
+    let updated;
+    if (index >= 0) {
+      updated = [...list];
+      updated[index] = { ...updated[index], ...userData };
+    } else {
+      updated = [...list, { ...userData, id: userData.id || `usr_${Date.now()}` }];
+    }
+    setStoredItem(STORAGE_KEYS.USERS, updated);
+    return updated;
+  },
+  deleteUser: (userId) => {
+    const list = getStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS);
+    const updated = list.filter(u => u.id !== userId);
+    setStoredItem(STORAGE_KEYS.USERS, updated);
+    return updated;
+  },
+  getCurrentUser: () => getStoredItem(STORAGE_KEYS.CURRENT_USER, INITIAL_USERS[0]),
+  setCurrentUser: (user) => setStoredItem(STORAGE_KEYS.CURRENT_USER, user),
 
   // CTVs
   getCTVs: () => getStoredItem(STORAGE_KEYS.CTVS, INITIAL_CTVS),
 
   // Blogs
-  getBlogs: () => getStoredItem(STORAGE_KEYS.BLOGS, INITIAL_BLOGS),
-  getBlogById: (id) => {
-    const blogs = getStoredItem(STORAGE_KEYS.BLOGS, INITIAL_BLOGS);
-    return blogs.find(b => b.id === id);
-  },
-
-  // Roles & Permissions Management
-  getRoles: () => {
-    return getStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES);
-  },
-  
-  saveRole: (roleData) => {
-    const roles = getStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES);
-    const index = roles.findIndex(r => r.id === roleData.id || r.code === roleData.code);
-    let updated;
-    if (index >= 0) {
-      updated = [...roles];
-      updated[index] = { ...updated[index], ...roleData };
-    } else {
-      const newRole = {
-        ...roleData,
-        id: roleData.id || `role_${Date.now()}`,
-        code: roleData.code || `role_${Date.now()}`,
-      };
-      updated = [...roles, newRole];
-    }
-    setStoredItem(STORAGE_KEYS.ROLES, updated);
-
-    ApiClient.post('/roles', roleData).then(apiRes => {
-      if (apiRes && Array.isArray(apiRes)) {
-        setStoredItem(STORAGE_KEYS.ROLES, apiRes);
-      }
-    }).catch(err => console.warn('[DataService] saveRole API warning:', err.message));
-
-    return updated;
-  },
-
-  deleteRole: (roleId) => {
-    const roles = getStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES);
-    const updated = roles.filter(r => r.id !== roleId && r.code !== roleId);
-    setStoredItem(STORAGE_KEYS.ROLES, updated);
-
-    ApiClient.delete(`/roles/${roleId}`).then(apiRes => {
-      if (apiRes && Array.isArray(apiRes)) {
-        setStoredItem(STORAGE_KEYS.ROLES, apiRes);
-      }
-    }).catch(err => console.warn('[DataService] deleteRole API warning:', err.message));
-
-    return updated;
-  },
-
-  // Users Management
-  getUsers: () => {
-    return getStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS);
-  },
-
-  saveUser: (userData) => {
-    const users = getStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS);
-    const index = users.findIndex(u => u.id === userData.id || u.email === userData.email);
-    let updated;
-    if (index >= 0) {
-      updated = [...users];
-      updated[index] = { ...updated[index], ...userData };
-    } else {
-      const newUser = {
-        ...userData,
-        id: userData.id || `usr_${Date.now()}`,
-        status: userData.status || 'Hoạt động',
-        avatar: userData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'
-      };
-      updated = [...users, newUser];
-    }
-    setStoredItem(STORAGE_KEYS.USERS, updated);
-
-    ApiClient.post('/users', userData).then(apiRes => {
-      if (apiRes && Array.isArray(apiRes)) {
-        setStoredItem(STORAGE_KEYS.USERS, apiRes);
-      }
-    }).catch(err => console.warn('[DataService] saveUser API warning:', err.message));
-
-    return updated;
-  },
-
-  approveUserAccount: async (userId, action) => {
-    const apiRes = await ApiClient.post('/users/approve', { userId, action });
-    if (apiRes && apiRes.users) {
-      setStoredItem(STORAGE_KEYS.USERS, apiRes.users);
-      return apiRes;
-    }
-    const users = getStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS);
-    const updated = users.map(u => u.id === userId ? { ...u, status: action === 'approve' ? 'Hoạt động' : 'Từ chối' } : u);
-    setStoredItem(STORAGE_KEYS.USERS, updated);
-    return { success: true, users: updated };
-  },
-
-  // Authentication & Current User State
-  getCurrentUser: () => {
-    const user = getStoredItem(STORAGE_KEYS.CURRENT_USER, null);
-    if (user && (user.id === 'usr_tailinh_admin' || user.id === 'usr_admin') && !localStorage.getItem('tinyhouse_jwt')) {
-      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-      return null;
-    }
-    return user;
-  },
-
-  setCurrentUser: (user) => {
-    setStoredItem(STORAGE_KEYS.CURRENT_USER, user);
-    return user;
-  },
-
-  logoutUser: () => {
-    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-    localStorage.removeItem('tinyhouse_jwt');
-    notifyListeners();
-    return null;
-  },
-
-  // Backup & Restore
-  exportFullBackup: () => {
-    const backupData = {
-      version: "3.0",
-      timestamp: new Date().toISOString(),
-      databaseProvider: "Tiny Houses Express & Supabase Cloud API Engine",
-      tables: {
-        buildings: getStoredItem(STORAGE_KEYS.BUILDINGS, INITIAL_BUILDINGS),
-        rooms: getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS),
-        bookings: getStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS),
-        ctvs: getStoredItem(STORAGE_KEYS.CTVS, INITIAL_CTVS),
-        blogs: getStoredItem(STORAGE_KEYS.BLOGS, INITIAL_BLOGS),
-        roles: getStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES),
-        users: getStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS),
-      }
-    };
-    return backupData;
-  },
-
-  importBackupData: async (backupJson) => {
-    try {
-      if (backupJson && backupJson.tables) {
-        if (backupJson.tables.buildings) setStoredItem(STORAGE_KEYS.BUILDINGS, backupJson.tables.buildings);
-        if (backupJson.tables.rooms) setStoredItem(STORAGE_KEYS.ROOMS, backupJson.tables.rooms);
-        if (backupJson.tables.bookings) setStoredItem(STORAGE_KEYS.BOOKINGS, backupJson.tables.bookings);
-        if (backupJson.tables.ctvs) setStoredItem(STORAGE_KEYS.CTVS, backupJson.tables.ctvs);
-        if (backupJson.tables.blogs) setStoredItem(STORAGE_KEYS.BLOGS, backupJson.tables.blogs);
-        if (backupJson.tables.roles) setStoredItem(STORAGE_KEYS.ROLES, backupJson.tables.roles);
-        if (backupJson.tables.users) setStoredItem(STORAGE_KEYS.USERS, backupJson.tables.users);
-        await ApiClient.post('/restore', backupJson);
-        return { success: true, message: "Phục hồi cơ sở dữ liệu Backend thành công!" };
-      } else {
-        return { success: false, message: "Định dạng tập tin sao lưu không hợp lệ." };
-      }
-    } catch (e) {
-      return { success: false, message: e.message };
-    }
-  },
-
-  resetToDefault: () => {
-    setStoredItem(STORAGE_KEYS.BUILDINGS, INITIAL_BUILDINGS);
-    setStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
-    setStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
-    setStoredItem(STORAGE_KEYS.CTVS, INITIAL_CTVS);
-    setStoredItem(STORAGE_KEYS.BLOGS, INITIAL_BLOGS);
-    setStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES);
-    setStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS);
-    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-  }
+  getBlogs: () => getStoredItem(STORAGE_KEYS.BLOGS, INITIAL_BLOGS)
 };

@@ -4,7 +4,7 @@ import { DataService } from '../services/dataService';
 import MapView from '../components/MapView';
 import ImageLightboxModal from '../components/ImageLightboxModal';
 
-import { groupRoomsIntoTypes, getValidImageUrl } from '../utils/roomHierarchy';
+import { getValidImageUrl } from '../utils/roomHierarchy';
 
 export default function BuildingDetailPage({ buildingId, setActiveTab, setSelectedRoomId }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -41,8 +41,8 @@ export default function BuildingDetailPage({ buildingId, setActiveTab, setSelect
 
   const galleryImages = Array.from(new Set(rawGallery.concat(fallbackGallery))).filter(Boolean);
 
-  // Group rooms into unified Room Types
-  const roomTypes = groupRoomsIntoTypes(rooms);
+  // Direct Room Types for this building
+  const roomTypes = rooms || [];
   const totalVacantRooms = roomTypes.reduce((acc, rt) => acc + (rt.specificRooms?.length || 0), 0) || building.vacantRoomsCount || 0;
 
   const handleOpenLightbox = (index) => {
