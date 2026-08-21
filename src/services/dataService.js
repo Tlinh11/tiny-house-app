@@ -1,16 +1,17 @@
 // Data Service for local state & Backend API Server Realtime integration
 import { INITIAL_BUILDINGS, INITIAL_ROOMS, INITIAL_BOOKINGS, INITIAL_CTVS, INITIAL_BLOGS } from '../data/mockData';
 import { ApiClient } from './apiClient';
+import { normalizeRoomTypeName } from '../utils/roomHierarchy';
 
 const STORAGE_KEYS = {
-  BUILDINGS: 'tinyhouse_buildings_v5',
-  ROOMS: 'tinyhouse_rooms_v5',
-  BOOKINGS: 'tinyhouse_bookings_v5',
-  CTVS: 'tinyhouse_ctvs_v5',
-  BLOGS: 'tinyhouse_blogs_v5',
-  ROLES: 'tinyhouse_roles_v5',
-  USERS: 'tinyhouse_users_v5',
-  CURRENT_USER: 'tinyhouse_current_user_v5',
+  BUILDINGS: 'tinyhouse_buildings_v8',
+  ROOMS: 'tinyhouse_rooms_v8',
+  BOOKINGS: 'tinyhouse_bookings_v8',
+  CTVS: 'tinyhouse_ctvs_v8',
+  BLOGS: 'tinyhouse_blogs_v8',
+  ROLES: 'tinyhouse_roles_v8',
+  USERS: 'tinyhouse_users_v8',
+  CURRENT_USER: 'tinyhouse_current_user_v8',
 };
 
 // Initial Roles Definition
@@ -110,11 +111,17 @@ const getStoredItem = (key, initialValue) => {
 function enrichRoomsList(roomsList = []) {
   if (!Array.isArray(roomsList) || roomsList.length === 0) return INITIAL_ROOMS;
 
-  return roomsList.map(r => {
-    // Match against INITIAL_ROOMS to ensure all room_numbers from export_all_data copy.json are preserved
+  const map = new Map();
+
+  roomsList.forEach(r => {
+    const rawType = r.type || r.name || 'Studio';
+    const normType = normalizeRoomTypeName(rawType);
+    const bldCode = r.buildingCode || r.buildingName || '';
+    const key = `${bldCode}_${normType}`;
+
     const initMatch = INITIAL_ROOMS.find(ir => 
       ir.id === r.id || 
-      (ir.buildingCode === r.buildingCode && (ir.type === r.type || ir.name === r.type))
+      (ir.buildingCode === bldCode && normalizeRoomTypeName(ir.type) === normType)
     );
 
     let specificRooms = r.specificRooms;
@@ -130,16 +137,34 @@ function enrichRoomsList(roomsList = []) {
 
     const cleanRooms = Array.from(new Set(specificRooms.filter(Boolean)));
 
-    return {
-      ...r,
-      specificRooms: cleanRooms,
-      room_numbers: cleanRooms,
-      available_rooms: cleanRooms.length,
-      vacantCount: cleanRooms.length,
-      status: cleanRooms.length > 0 ? (r.status || 'Có sẵn') : 'Hết phòng',
-      roomNumber: cleanRooms[0] || r.roomNumber || '501'
-    };
+    if (!map.has(key)) {
+      map.set(key, {
+        ...r,
+        type: normType,
+        name: normType,
+        specificRooms: cleanRooms,
+        room_numbers: cleanRooms,
+        available_rooms: cleanRooms.length,
+        vacantCount: cleanRooms.length,
+        status: cleanRooms.length > 0 ? (r.status || 'Có sẵn') : 'Hết phòng',
+        roomNumber: cleanRooms[0] || r.roomNumber || '501'
+      });
+    } else {
+      // Merge unique rooms without creating duplicates
+      const existing = map.get(key);
+      const combined = Array.from(new Set([...existing.specificRooms, ...cleanRooms]));
+      map.set(key, {
+        ...existing,
+        specificRooms: combined,
+        room_numbers: combined,
+        available_rooms: combined.length,
+        vacantCount: combined.length,
+        status: combined.length > 0 ? (existing.status || 'Có sẵn') : 'Hết phòng'
+      });
+    }
   });
+
+  return Array.from(map.values());
 }
 
 const setStoredItem = (key, value) => {

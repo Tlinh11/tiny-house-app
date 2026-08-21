@@ -3,6 +3,29 @@
  * Ensures consistent business rules across Frontend, CMS, and Services.
  */
 
+// 0. Normalize room type name to avoid accidental duplicates (e.g. "Studio ban công" vs "Studio - Ban công")
+export function normalizeRoomTypeName(name) {
+  if (!name || typeof name !== 'string') return 'Studio khép kín';
+  const clean = name.trim().toLowerCase().replace(/\s+/g, ' ');
+  
+  if (clean.includes('ban công') || clean.includes('ban cong')) {
+    return 'Studio - Ban công';
+  }
+  if (clean.includes('gác xép') || clean.includes('gac xep')) {
+    return 'Studio - Gác xép';
+  }
+  if (clean.includes('2n1k') || clean.includes('2 phòng ngủ') || clean.includes('2pn')) {
+    return 'Căn 2N1K';
+  }
+  if (clean.includes('1n1k') || clean.includes('1 phòng ngủ') || clean.includes('1pn')) {
+    return 'Căn 1N1K';
+  }
+  if (clean === 'studio' || clean.startsWith('studio khép kín') || clean.startsWith('studio khep kin')) {
+    return 'Studio';
+  }
+  return name.trim();
+}
+
 // 1. Parse and deduplicate raw room number input string (e.g. "201, 202; 203 204")
 export function parseRoomNumbers(input, existingRooms = []) {
   if (!input || typeof input !== 'string') return existingRooms;
@@ -73,12 +96,13 @@ export function getBuildingPriceRange(building, allRooms = []) {
   };
 }
 
-// 6. Group raw room list into clean, deduplicated Room Types
+// 6. Group raw room list into clean, normalized, deduplicated Room Types
 export function groupRoomsIntoTypes(rooms = []) {
   const map = new Map();
 
   rooms.forEach(r => {
-    const typeKey = (r.type || r.name || 'Studio khép kín').trim();
+    const rawName = r.type || r.name || 'Studio';
+    const typeKey = normalizeRoomTypeName(rawName);
     const roomsList = getRoomTypeNumbers(r);
 
     if (!map.has(typeKey)) {
