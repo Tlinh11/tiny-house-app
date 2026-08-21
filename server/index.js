@@ -75,11 +75,15 @@ app.get('/api/health', (req, res) => {
 });
 
 // Start Express Server
-app.listen(PORT, () => {
-  console.log(`\n======================================================`);
-  console.log(`🚀 Tiny House Backend Server running on port ${PORT}`);
-  console.log(`🏛️ Architecture: Controller -> Service -> Model -> Database`);
-  console.log(`💾 Database: Supabase PostgreSQL (Zero local file storage)`);
-  console.log(`📡 Health Check: http://localhost:${PORT}/api/health`);
-  console.log(`======================================================\n`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`\n======================================================`);
+    console.log(`🚀 Tiny House Backend Server running on port ${PORT}`);
+    console.log(`🏛️ Architecture: Controller -> Service -> Model -> Database`);
+    console.log(`💾 Database: Supabase PostgreSQL (Zero local file storage)`);
+    console.log(`📡 Health Check: http://localhost:${PORT}/api/health`);
+    console.log(`======================================================\n`);
+  });
+}
+
+export default app;

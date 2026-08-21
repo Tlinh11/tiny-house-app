@@ -22,8 +22,8 @@ export const bookingService = {
         b.id === (data.buildingId || data.building_id)
       );
 
-      // Trigger asynchronous email sending to mkt.tinyhouses@gmail.com
-      emailService.sendBookingNotificationToAdmin({
+      // Await email sending so serverless containers (Vercel) do not freeze before sending finishes
+      await emailService.sendBookingNotificationToAdmin({
         booking: {
           id: created.id || data.id,
           customerName: data.customerName || data.name || 'Khách hàng',
