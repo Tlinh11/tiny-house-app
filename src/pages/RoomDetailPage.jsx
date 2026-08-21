@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { DataService } from '../services/dataService';
 import ImageLightboxModal from '../components/ImageLightboxModal';
+import { groupRoomsIntoTypes, getRoomTypeNumbers } from '../utils/roomHierarchy';
 
 // Custom Amenity Item with rounded bordered box matching user screenshot
 function AmenityItem({ name }) {
@@ -81,30 +82,7 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
   }, [roomId]);
 
   // Deduplicate building rooms into unique Room Types (Loại phòng)
-  const availableRoomTypes = (() => {
-    const rawList = buildingRooms && buildingRooms.length > 0 ? buildingRooms : [room];
-    const map = new Map();
-    rawList.forEach(r => {
-      const key = r.type?.trim() || 'Studio khép kín';
-      if (!map.has(key)) {
-        map.set(key, {
-          ...r,
-          specificRooms: r.specificRooms && r.specificRooms.length > 0 ? r.specificRooms : [r.roomNumber || '101']
-        });
-      } else {
-        const existing = map.get(key);
-        const mergedRooms = Array.from(new Set([
-          ...(existing.specificRooms || []),
-          ...(r.specificRooms || (r.roomNumber ? [r.roomNumber] : []))
-        ]));
-        map.set(key, {
-          ...existing,
-          specificRooms: mergedRooms
-        });
-      }
-    });
-    return Array.from(map.values());
-  })();
+  const availableRoomTypes = groupRoomsIntoTypes(buildingRooms && buildingRooms.length > 0 ? buildingRooms : [room]);
   
   // Active Room Type ID
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState(room.id || availableRoomTypes[0]?.id);
@@ -112,12 +90,8 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
   // Fallback to active room type object
   const activeRoomType = availableRoomTypes.find(r => r.id === selectedRoomTypeId) || availableRoomTypes[0] || room;
 
-  // Specific room numbers for active room type (Deduplicated)
-  const rawSpecificRooms = activeRoomType.specificRooms && activeRoomType.specificRooms.length > 0
-    ? activeRoomType.specificRooms
-    : (activeRoomType.roomNumber ? [activeRoomType.roomNumber] : ['501', '502', '503', '504']);
-  
-  const specificRoomsList = Array.from(new Set(rawSpecificRooms));
+  // Specific room numbers for active room type
+  const specificRoomsList = getRoomTypeNumbers(activeRoomType);
 
   // Selected specific room number
   const [selectedRoomNumber, setSelectedRoomNumber] = useState(specificRoomsList[0] || '501');
@@ -125,10 +99,7 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
   // Handle switching room types
   const handleSelectRoomType = (rt) => {
     setSelectedRoomTypeId(rt.id);
-    const rawList = rt.specificRooms && rt.specificRooms.length > 0
-      ? rt.specificRooms
-      : (rt.roomNumber ? [rt.roomNumber] : ['501', '502', '503', '504']);
-    const cleanList = Array.from(new Set(rawList));
+    const cleanList = getRoomTypeNumbers(rt);
     setSelectedRoomNumber(cleanList[0] || '501');
   };
 

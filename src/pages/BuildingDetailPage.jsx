@@ -4,6 +4,8 @@ import { DataService } from '../services/dataService';
 import MapView from '../components/MapView';
 import ImageLightboxModal from '../components/ImageLightboxModal';
 
+import { groupRoomsIntoTypes } from '../utils/roomHierarchy';
+
 export default function BuildingDetailPage({ buildingId, setActiveTab, setSelectedRoomId }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -39,82 +41,9 @@ export default function BuildingDetailPage({ buildingId, setActiveTab, setSelect
 
   const galleryImages = Array.from(new Set(rawGallery.concat(fallbackGallery))).filter(Boolean);
 
-  // Group rooms into 3 unique Room Types: Studio khép kín, Studio ban công, Studio
-  const roomTypes = (() => {
-    const defaultTypes = [
-      {
-        id: `${building.code || 'TH0008'}_studio_khep_kin`,
-        type: 'Studio khép kín',
-        area: 28,
-        maxOccupants: 2,
-        price: building.minPrice || 4500000,
-        status: 'Có sẵn',
-        roomNumber: '101',
-        specificRooms: ['101', '102', '201', '202', '301', '302'],
-        images: [
-          'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80'
-        ]
-      },
-      {
-        id: `${building.code || 'TH0008'}_studio_ban_cong`,
-        type: 'Studio ban công',
-        area: 32,
-        maxOccupants: 2,
-        price: (building.minPrice || 4500000) + 500000,
-        status: 'Có sẵn',
-        roomNumber: '203',
-        specificRooms: ['203', '204', '303', '304', '403', '404', '503', '504', '603', '604'],
-        images: [
-          'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=800&q=80'
-        ]
-      },
-      {
-        id: `${building.code || 'TH0008'}_studio`,
-        type: 'Studio',
-        area: 25,
-        maxOccupants: 2,
-        price: building.minPrice || 4000000,
-        status: 'Có sẵn',
-        roomNumber: '501',
-        specificRooms: ['501', '502', '601', '602'],
-        images: [
-          'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80'
-        ]
-      }
-    ];
-
-    if (!rooms || rooms.length === 0) return defaultTypes;
-
-    // Group existing rooms by type
-    const mapByType = new Map();
-    rooms.forEach(r => {
-      const typeKey = r.type?.trim() || 'Studio khép kín';
-      if (!mapByType.has(typeKey)) {
-        mapByType.set(typeKey, {
-          ...r,
-          specificRooms: r.specificRooms && r.specificRooms.length > 0 ? r.specificRooms : [r.roomNumber || '101']
-        });
-      } else {
-        const existing = mapByType.get(typeKey);
-        const combinedSpecific = Array.from(new Set([
-          ...(existing.specificRooms || []),
-          ...(r.specificRooms || (r.roomNumber ? [r.roomNumber] : []))
-        ]));
-        mapByType.set(typeKey, {
-          ...existing,
-          specificRooms: combinedSpecific
-        });
-      }
-    });
-
-    const uniqueList = Array.from(mapByType.values());
-    return uniqueList.length >= 2 ? uniqueList : defaultTypes;
-  })();
-
-  const totalVacantRooms = roomTypes.reduce((acc, rt) => acc + (rt.specificRooms?.length || 1), 0);
+  // Group rooms into unified Room Types
+  const roomTypes = groupRoomsIntoTypes(rooms);
+  const totalVacantRooms = roomTypes.reduce((acc, rt) => acc + (rt.specificRooms?.length || 0), 0) || building.vacantRoomsCount || 0;
 
   const handleOpenLightbox = (index) => {
     setLightboxIndex(index);
