@@ -3,14 +3,14 @@ import { INITIAL_BUILDINGS, INITIAL_ROOMS, INITIAL_BOOKINGS, INITIAL_CTVS, INITI
 import { ApiClient } from './apiClient';
 
 const STORAGE_KEYS = {
-  BUILDINGS: 'tinyhouse_buildings_v4',
-  ROOMS: 'tinyhouse_rooms_v4',
-  BOOKINGS: 'tinyhouse_bookings_v4',
-  CTVS: 'tinyhouse_ctvs_v4',
-  BLOGS: 'tinyhouse_blogs_v4',
-  ROLES: 'tinyhouse_roles_v4',
-  USERS: 'tinyhouse_users_v4',
-  CURRENT_USER: 'tinyhouse_current_user_v4',
+  BUILDINGS: 'tinyhouse_buildings_v5',
+  ROOMS: 'tinyhouse_rooms_v5',
+  BOOKINGS: 'tinyhouse_bookings_v5',
+  CTVS: 'tinyhouse_ctvs_v5',
+  BLOGS: 'tinyhouse_blogs_v5',
+  ROLES: 'tinyhouse_roles_v5',
+  USERS: 'tinyhouse_users_v5',
+  CURRENT_USER: 'tinyhouse_current_user_v5',
 };
 
 // Initial Roles Definition
@@ -177,7 +177,7 @@ export const DataService = {
     return list.find(b => b.id === id || b.code === id || (b.code && b.code.toLowerCase() === String(id).toLowerCase())) || list[0];
   },
 
-  saveBuilding: async (buildingData) => {
+  saveBuilding: (buildingData) => {
     const list = getStoredItem(STORAGE_KEYS.BUILDINGS, INITIAL_BUILDINGS);
     const existingIndex = list.findIndex(b => b.id === buildingData.id || b.code === buildingData.code);
     let updated;
@@ -189,11 +189,13 @@ export const DataService = {
     }
     setStoredItem(STORAGE_KEYS.BUILDINGS, updated);
     
-    // API POST to backend Express server
-    const apiRes = await ApiClient.post('/buildings', buildingData);
-    if (apiRes && Array.isArray(apiRes)) {
-      setStoredItem(STORAGE_KEYS.BUILDINGS, apiRes);
-    }
+    // API POST to backend Express server in background
+    ApiClient.post('/buildings', buildingData).then(apiRes => {
+      if (apiRes && Array.isArray(apiRes)) {
+        setStoredItem(STORAGE_KEYS.BUILDINGS, apiRes);
+      }
+    }).catch(err => console.warn('[DataService] saveBuilding API warning:', err.message));
+
     return updated;
   },
 
@@ -202,9 +204,14 @@ export const DataService = {
     return getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
   },
 
-  getRoomsByBuilding: (buildingId) => {
+  getRoomsByBuilding: (buildingIdOrCode) => {
     const rooms = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
-    return rooms.filter(r => r.buildingId === buildingId || r.buildingCode === buildingId);
+    if (!buildingIdOrCode) return rooms;
+    return rooms.filter(r => 
+      r.buildingId === buildingIdOrCode || 
+      r.buildingCode === buildingIdOrCode ||
+      (typeof buildingIdOrCode === 'object' && (r.buildingCode === buildingIdOrCode.code || r.buildingId === buildingIdOrCode.id))
+    );
   },
 
   getRoomById: (roomId) => {
@@ -213,7 +220,7 @@ export const DataService = {
     return rooms.find(r => r.id === roomId || r.id.includes(roomId)) || rooms[0];
   },
 
-  saveRoom: async (roomData) => {
+  saveRoom: (roomData) => {
     const rooms = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
     const index = rooms.findIndex(r => r.id === roomData.id);
     let updated;
@@ -225,11 +232,13 @@ export const DataService = {
     }
     setStoredItem(STORAGE_KEYS.ROOMS, updated);
 
-    // API POST to backend
-    const apiRes = await ApiClient.post('/rooms', roomData);
-    if (apiRes && Array.isArray(apiRes)) {
-      setStoredItem(STORAGE_KEYS.ROOMS, apiRes);
-    }
+    // API POST to backend in background
+    ApiClient.post('/rooms', roomData).then(apiRes => {
+      if (apiRes && Array.isArray(apiRes)) {
+        setStoredItem(STORAGE_KEYS.ROOMS, apiRes);
+      }
+    }).catch(err => console.warn('[DataService] saveRoom API warning:', err.message));
+
     return updated;
   },
 
@@ -238,7 +247,7 @@ export const DataService = {
     return getStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
   },
 
-  createBooking: async (booking) => {
+  createBooking: (booking) => {
     const bookings = getStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
     const newBooking = {
       ...booking,
@@ -249,28 +258,31 @@ export const DataService = {
     const updated = [newBooking, ...bookings];
     setStoredItem(STORAGE_KEYS.BOOKINGS, updated);
 
-    // API POST to backend Express server
-    const apiRes = await ApiClient.post('/bookings', booking);
-    if (apiRes) {
-      // Re-fetch fresh bookings from backend
-      const freshBookings = await ApiClient.get('/bookings');
-      if (freshBookings && Array.isArray(freshBookings)) {
-        setStoredItem(STORAGE_KEYS.BOOKINGS, freshBookings);
+    // API POST to backend Express server in background
+    ApiClient.post('/bookings', booking).then(async (apiRes) => {
+      if (apiRes) {
+        const freshBookings = await ApiClient.get('/bookings');
+        if (freshBookings && Array.isArray(freshBookings)) {
+          setStoredItem(STORAGE_KEYS.BOOKINGS, freshBookings);
+        }
       }
-    }
+    }).catch(err => console.warn('[DataService] createBooking API warning:', err.message));
+
     return newBooking;
   },
 
-  updateBookingStatus: async (id, newStatus) => {
+  updateBookingStatus: (id, newStatus) => {
     const bookings = getStoredItem(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
     const updated = bookings.map(b => b.id === id ? { ...b, status: newStatus } : b);
     setStoredItem(STORAGE_KEYS.BOOKINGS, updated);
 
-    // API PUT to backend Express server
-    const apiRes = await ApiClient.put(`/bookings/${id}/status`, { status: newStatus });
-    if (apiRes && Array.isArray(apiRes)) {
-      setStoredItem(STORAGE_KEYS.BOOKINGS, apiRes);
-    }
+    // API PUT to backend Express server in background
+    ApiClient.put(`/bookings/${id}/status`, { status: newStatus }).then(apiRes => {
+      if (apiRes && Array.isArray(apiRes)) {
+        setStoredItem(STORAGE_KEYS.BOOKINGS, apiRes);
+      }
+    }).catch(err => console.warn('[DataService] updateBookingStatus API warning:', err.message));
+
     return updated;
   },
 
@@ -289,7 +301,7 @@ export const DataService = {
     return getStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES);
   },
   
-  saveRole: async (roleData) => {
+  saveRole: (roleData) => {
     const roles = getStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES);
     const index = roles.findIndex(r => r.id === roleData.id || r.code === roleData.code);
     let updated;
@@ -306,22 +318,26 @@ export const DataService = {
     }
     setStoredItem(STORAGE_KEYS.ROLES, updated);
 
-    const apiRes = await ApiClient.post('/roles', roleData);
-    if (apiRes && Array.isArray(apiRes)) {
-      setStoredItem(STORAGE_KEYS.ROLES, apiRes);
-    }
+    ApiClient.post('/roles', roleData).then(apiRes => {
+      if (apiRes && Array.isArray(apiRes)) {
+        setStoredItem(STORAGE_KEYS.ROLES, apiRes);
+      }
+    }).catch(err => console.warn('[DataService] saveRole API warning:', err.message));
+
     return updated;
   },
 
-  deleteRole: async (roleId) => {
+  deleteRole: (roleId) => {
     const roles = getStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES);
     const updated = roles.filter(r => r.id !== roleId && r.code !== roleId);
     setStoredItem(STORAGE_KEYS.ROLES, updated);
 
-    const apiRes = await ApiClient.delete(`/roles/${roleId}`);
-    if (apiRes && Array.isArray(apiRes)) {
-      setStoredItem(STORAGE_KEYS.ROLES, apiRes);
-    }
+    ApiClient.delete(`/roles/${roleId}`).then(apiRes => {
+      if (apiRes && Array.isArray(apiRes)) {
+        setStoredItem(STORAGE_KEYS.ROLES, apiRes);
+      }
+    }).catch(err => console.warn('[DataService] deleteRole API warning:', err.message));
+
     return updated;
   },
 
@@ -330,7 +346,7 @@ export const DataService = {
     return getStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS);
   },
 
-  saveUser: async (userData) => {
+  saveUser: (userData) => {
     const users = getStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS);
     const index = users.findIndex(u => u.id === userData.id || u.email === userData.email);
     let updated;
@@ -348,10 +364,12 @@ export const DataService = {
     }
     setStoredItem(STORAGE_KEYS.USERS, updated);
 
-    const apiRes = await ApiClient.post('/users', userData);
-    if (apiRes && Array.isArray(apiRes)) {
-      setStoredItem(STORAGE_KEYS.USERS, apiRes);
-    }
+    ApiClient.post('/users', userData).then(apiRes => {
+      if (apiRes && Array.isArray(apiRes)) {
+        setStoredItem(STORAGE_KEYS.USERS, apiRes);
+      }
+    }).catch(err => console.warn('[DataService] saveUser API warning:', err.message));
+
     return updated;
   },
 
@@ -368,7 +386,14 @@ export const DataService = {
   },
 
   // Authentication & Current User State
-  getCurrentUser: () => getStoredItem(STORAGE_KEYS.CURRENT_USER, INITIAL_USERS[0]),
+  getCurrentUser: () => {
+    const user = getStoredItem(STORAGE_KEYS.CURRENT_USER, null);
+    if (user && (user.id === 'usr_tailinh_admin' || user.id === 'usr_admin') && !localStorage.getItem('tinyhouse_jwt')) {
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      return null;
+    }
+    return user;
+  },
 
   setCurrentUser: (user) => {
     setStoredItem(STORAGE_KEYS.CURRENT_USER, user);
@@ -429,6 +454,6 @@ export const DataService = {
     setStoredItem(STORAGE_KEYS.BLOGS, INITIAL_BLOGS);
     setStoredItem(STORAGE_KEYS.ROLES, INITIAL_ROLES);
     setStoredItem(STORAGE_KEYS.USERS, INITIAL_USERS);
-    setStoredItem(STORAGE_KEYS.CURRENT_USER, INITIAL_USERS[0]);
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
   }
 };

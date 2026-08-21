@@ -10,17 +10,17 @@ export default function SearchPage({ setActiveTab, setSelectedBuildingId, search
   const [filterType, setFilterType] = useState('all');
   const [selectedDistrict, setSelectedDistrict] = useState(searchFilters?.district || 'all');
   const [selectedRoomTypes, setSelectedRoomTypes] = useState([]);
-  
+
   const [minPrice, setMinPrice] = useState(searchFilters?.minPrice ?? 0);
-  const [maxPrice, setMaxPrice] = useState(searchFilters?.maxPrice ?? 20000000);
+  const [maxPrice, setMaxPrice] = useState(searchFilters?.maxPrice ?? 35000000);
   const [minArea, setMinArea] = useState(0);
   const [maxArea, setMaxArea] = useState(100);
 
-  const [viewMode, setViewMode] = useState('split');
+  const [viewMode, setViewMode] = useState('grid');
   const [sortBy, setSortBy] = useState('vacant-desc');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(6);
+  const [itemsPerPage, setItemsPerPage] = useState(21);
 
   const [buildings, setBuildings] = useState(() => DataService.getBuildings());
   const [allRooms, setAllRooms] = useState(() => DataService.getRooms());
@@ -96,7 +96,7 @@ export default function SearchPage({ setActiveTab, setSelectedBuildingId, search
         <div className="container">
           <span className="badge badge-warning" style={{ marginBottom: 10 }}>🏠 Tìm phòng thực tế</span>
           <h1 style={{ fontSize: '2.2rem', fontWeight: 900, marginBottom: 8, color: '#ffffff' }}>
-            Danh sách {buildings.length} Tòa nhà Tiny Houses
+            Danh sách tòa nhà
           </h1>
           <p style={{ color: '#94A3B8', fontSize: '0.95rem', margin: 0 }}>
             Phòng thật — Giá thật — 100% Ảnh & Video thực tế — Xem phòng 24/7 miễn phí
@@ -106,8 +106,8 @@ export default function SearchPage({ setActiveTab, setSelectedBuildingId, search
 
       <div className="container">
         {/* TOP FILTER & VIEW TOGGLE BAR */}
-        <div className="card" style={{ padding: '16px 20px', marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          
+        <div className="card" style={{ padding: '16px 20px', marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 16, overflow: 'visible', position: 'relative', zIndex: 30 }}>
+
           {/* HÀNG 1: TẤT CẢ BỘ LỌC NẰM TRÊN CÙNG 1 HÀNG DỰA TRÊN THIẾT KẾ ĐỒNG ĐỀU */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A', whiteSpace: 'nowrap', marginRight: 4 }}>
@@ -155,7 +155,7 @@ export default function SearchPage({ setActiveTab, setSelectedBuildingId, search
               title="Khoảng giá"
               popupTitle="Khoảng giá thuê / tháng"
               min={0}
-              max={20000000}
+              max={35000000}
               step={500000}
               minValue={minPrice}
               maxValue={maxPrice}
@@ -201,7 +201,7 @@ export default function SearchPage({ setActiveTab, setSelectedBuildingId, search
                 title="Chia đôi màn hình Danh sách + Bản đồ"
               >
                 <Columns size={16} />
-                <span>Chia đôi (Map + List)</span>
+                <span>Chia đôi </span>
               </button>
               <button
                 className={'btn ' + (viewMode === 'map' ? 'btn-primary' : 'btn-secondary')}
@@ -229,7 +229,7 @@ export default function SearchPage({ setActiveTab, setSelectedBuildingId, search
                 </h3>
                 <button
                   style={{ background: 'none', color: '#64748B', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
-                  onClick={() => { setSelectedRoomTypes([]); setMinPrice(0); setMaxPrice(20000000); setSelectedDistrict('all'); setCurrentPage(1); }}
+                  onClick={() => { setSelectedRoomTypes([]); setMinPrice(0); setMaxPrice(35000000); setSelectedDistrict('all'); setCurrentPage(1); }}
                 >
                   ↻ Bỏ lọc
                 </button>
@@ -239,7 +239,7 @@ export default function SearchPage({ setActiveTab, setSelectedBuildingId, search
                 <h4 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 8, color: '#0F172A' }}>Khoảng giá thuê / tháng</h4>
                 <DualRangeSlider
                   min={0}
-                  max={20000000}
+                  max={35000000}
                   step={500000}
                   minValue={minPrice}
                   maxValue={maxPrice}
@@ -352,7 +352,7 @@ export default function SearchPage({ setActiveTab, setSelectedBuildingId, search
                 </h3>
                 <button
                   style={{ background: 'none', color: '#64748B', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
-                  onClick={() => { setSelectedRoomTypes([]); setMinPrice(0); setMaxPrice(20000000); setSelectedDistrict('all'); setCurrentPage(1); }}
+                  onClick={() => { setSelectedRoomTypes([]); setMinPrice(0); setMaxPrice(35000000); setSelectedDistrict('all'); setCurrentPage(1); }}
                 >
                   ↻ Bỏ lọc
                 </button>
@@ -382,7 +382,7 @@ export default function SearchPage({ setActiveTab, setSelectedBuildingId, search
                 <h4 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 8, color: '#0F172A' }}>Khoảng giá thuê / tháng</h4>
                 <DualRangeSlider
                   min={0}
-                  max={20000000}
+                  max={35000000}
                   step={500000}
                   minValue={minPrice}
                   maxValue={maxPrice}
@@ -397,51 +397,55 @@ export default function SearchPage({ setActiveTab, setSelectedBuildingId, search
             </div>
 
             <div>
-              <div className="responsive-grid-2" style={{ marginBottom: 20 }}>
+              <div className="building-grid-3col" style={{ marginBottom: 20 }}>
                 {paginatedBuildings.map((building) => (
-                  <div key={building.id} className="card" onClick={() => handleSelectBuilding(building.id)} style={{ cursor: 'pointer' }}>
-                    <div style={{ position: 'relative', height: 190 }}>
-                      <img src={building.coverImage} alt={building.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div key={building.id} className="card" onClick={() => handleSelectBuilding(building.id)} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden' }}>
+                    <div>
+                      <div style={{ position: 'relative', height: 175 }}>
+                        <img src={building.coverImage} alt={building.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
 
-                      <span className="badge badge-success" style={{ position: 'absolute', top: 10, left: 10 }}>
-                        {building.vacantRoomsCount} phòng trống
-                      </span>
+                        <span className="badge badge-success" style={{ position: 'absolute', top: 10, left: 10, fontSize: '0.75rem' }}>
+                          {building.vacantRoomsCount} phòng trống
+                        </span>
 
-                      <div style={{
-                        position: 'absolute',
-                        top: 10,
-                        right: 10,
-                        background: 'rgba(255,255,255,0.9)',
-                        padding: '3px 8px',
-                        borderRadius: 20,
-                        fontSize: '0.85rem',
-                        fontWeight: 800,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4
-                      }}>
-                        <Star size={14} fill="#F59E0B" color="#F59E0B" />
-                        <span>{building.rating.toFixed(1)}</span>
+                        <div style={{
+                          position: 'absolute',
+                          top: 10,
+                          right: 10,
+                          background: 'rgba(255,255,255,0.95)',
+                          padding: '3px 8px',
+                          borderRadius: 20,
+                          fontSize: '0.8rem',
+                          fontWeight: 800,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}>
+                          <Star size={13} fill="#F59E0B" color="#F59E0B" />
+                          <span>{building.rating.toFixed(1)}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ padding: 14 }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: 4, lineClamp: 1, WebkitLineClamp: 1, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{building.name}</h3>
+                        <p style={{ fontSize: '0.8rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 10, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                          <MapPin size={14} color="#E8920A" style={{ flexShrink: 0 }} />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{building.address}</span>
+                        </p>
                       </div>
                     </div>
 
-                    <div style={{ padding: 16 }}>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 4 }}>{building.name}</h3>
-                      <p style={{ fontSize: '0.85rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-                        <MapPin size={14} color="#E8920A" />
-                        <span>{building.address}</span>
-                      </p>
-
+                    <div style={{ padding: '0 14px 14px 14px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F1F5F9', paddingTop: 10 }}>
                         <div>
-                          <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#E8920A' }}>
-                            {(building.minPrice).toLocaleString('vi-VN')} VND
+                          <span style={{ fontSize: '1rem', fontWeight: 800, color: '#E8920A' }}>
+                            {(building.minPrice).toLocaleString('vi-VN')} đ
                           </span>
-                          <span style={{ fontSize: '0.8rem', color: '#64748B' }}> /tháng</span>
+                          <span style={{ fontSize: '0.75rem', color: '#64748B' }}> /tháng</span>
                         </div>
 
-                        <button className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }}>
-                          Xem chi tiết →
+                        <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }}>
+                          Chi tiết →
                         </button>
                       </div>
                     </div>

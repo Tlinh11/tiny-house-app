@@ -24,17 +24,105 @@ export default function BuildingDetailPage({ buildingId, setActiveTab, setSelect
 
   const allBuildings = DataService.getBuildings().filter(b => b.id !== building.id);
 
-  const galleryImages = building.images && building.images.length > 0 
-    ? building.images 
+  // Fallback high quality gallery images
+  const fallbackGallery = [
+    'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=800&q=80'
+  ];
+
+  const rawGallery = building.images && building.images.length > 0 
+    ? [building.coverImage, ...building.images] 
     : [building.coverImage];
+
+  const galleryImages = Array.from(new Set(rawGallery.concat(fallbackGallery))).filter(Boolean);
+
+  // Group rooms into 3 unique Room Types: Studio khép kín, Studio ban công, Studio
+  const roomTypes = (() => {
+    const defaultTypes = [
+      {
+        id: `${building.code || 'TH0008'}_studio_khep_kin`,
+        type: 'Studio khép kín',
+        area: 28,
+        maxOccupants: 2,
+        price: building.minPrice || 4500000,
+        status: 'Có sẵn',
+        roomNumber: '101',
+        specificRooms: ['101', '102', '201', '202', '301', '302'],
+        images: [
+          'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80'
+        ]
+      },
+      {
+        id: `${building.code || 'TH0008'}_studio_ban_cong`,
+        type: 'Studio ban công',
+        area: 32,
+        maxOccupants: 2,
+        price: (building.minPrice || 4500000) + 500000,
+        status: 'Có sẵn',
+        roomNumber: '203',
+        specificRooms: ['203', '204', '303', '304', '403', '404', '503', '504', '603', '604'],
+        images: [
+          'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=800&q=80'
+        ]
+      },
+      {
+        id: `${building.code || 'TH0008'}_studio`,
+        type: 'Studio',
+        area: 25,
+        maxOccupants: 2,
+        price: building.minPrice || 4000000,
+        status: 'Có sẵn',
+        roomNumber: '501',
+        specificRooms: ['501', '502', '601', '602'],
+        images: [
+          'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80'
+        ]
+      }
+    ];
+
+    if (!rooms || rooms.length === 0) return defaultTypes;
+
+    // Group existing rooms by type
+    const mapByType = new Map();
+    rooms.forEach(r => {
+      const typeKey = r.type?.trim() || 'Studio khép kín';
+      if (!mapByType.has(typeKey)) {
+        mapByType.set(typeKey, {
+          ...r,
+          specificRooms: r.specificRooms && r.specificRooms.length > 0 ? r.specificRooms : [r.roomNumber || '101']
+        });
+      } else {
+        const existing = mapByType.get(typeKey);
+        const combinedSpecific = Array.from(new Set([
+          ...(existing.specificRooms || []),
+          ...(r.specificRooms || (r.roomNumber ? [r.roomNumber] : []))
+        ]));
+        mapByType.set(typeKey, {
+          ...existing,
+          specificRooms: combinedSpecific
+        });
+      }
+    });
+
+    const uniqueList = Array.from(mapByType.values());
+    return uniqueList.length >= 2 ? uniqueList : defaultTypes;
+  })();
+
+  const totalVacantRooms = roomTypes.reduce((acc, rt) => acc + (rt.specificRooms?.length || 1), 0);
 
   const handleOpenLightbox = (index) => {
     setLightboxIndex(index);
     setLightboxOpen(true);
   };
 
-  const handleSelectRoom = (roomId) => {
-    if (setSelectedRoomId) setSelectedRoomId(roomId);
+  const handleSelectRoom = (roomItem) => {
+    if (setSelectedRoomId) setSelectedRoomId(roomItem.id);
     setActiveTab('room-detail');
   };
 
@@ -46,7 +134,7 @@ export default function BuildingDetailPage({ buildingId, setActiveTab, setSelect
   };
 
   return (
-    <div style={{ padding: '30px 0' }}>
+    <div style={{ padding: '30px 0', background: '#FAFAFA', minHeight: '100vh' }}>
       <div className="container">
         {/* Breadcrumb */}
         <p style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: 12 }}>
@@ -74,7 +162,7 @@ export default function BuildingDetailPage({ buildingId, setActiveTab, setSelect
             onClick={() => handleOpenLightbox(0)}
           >
             <img 
-              src={galleryImages[0] || building.coverImage} 
+              src={galleryImages[0]} 
               alt={building.name} 
               style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} 
             />
@@ -98,13 +186,13 @@ export default function BuildingDetailPage({ buildingId, setActiveTab, setSelect
 
           {/* Right 4 Small Photos Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, height: 380 }}>
-            {(galleryImages.slice(1, 5).concat([building.coverImage, building.coverImage])).slice(0, 4).map((img, idx) => (
+            {galleryImages.slice(1, 5).map((img, idx) => (
               <div 
                 key={idx} 
                 style={{ height: 182, overflow: 'hidden', cursor: 'pointer', position: 'relative' }}
                 onClick={() => handleOpenLightbox(idx + 1 < galleryImages.length ? idx + 1 : 0)}
               >
-                <img src={img} alt={`Gallery ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} />
+                <img src={img} alt={`Gallery ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} />
               </div>
             ))}
           </div>
@@ -116,46 +204,42 @@ export default function BuildingDetailPage({ buildingId, setActiveTab, setSelect
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
               <Building2 size={24} color="#E8920A" />
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 800 }}>Các loại phòng khả dụng ({rooms.length} phòng)</h2>
+              <h2 style={{ fontSize: '1.6rem', fontWeight: 800 }}>Các loại phòng khả dụng ({totalVacantRooms} phòng - {roomTypes.length} loại phòng)</h2>
             </div>
 
-            {/* Room List in Building */}
+            {/* Unique Room Types List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {rooms.length > 0 ? (
-                rooms.map((room) => (
-                  <div key={room.id} className="card" style={{ padding: 20, display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 20, alignItems: 'center' }}>
-                    <img 
-                      src={room.images[0] || building.coverImage} 
-                      alt={room.type} 
-                      style={{ width: '100%', height: 120, borderRadius: 12, objectFit: 'cover' }} 
-                    />
-                    <div>
-                      <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-                        <span className="badge badge-success">{room.status}</span>
-                        <span style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: 600 }}>Căn: {room.roomNumber}</span>
-                      </div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{room.type}</h3>
-                      <div style={{ fontSize: '0.85rem', color: '#64748B', marginTop: 4 }}>
-                        📐 {room.area} m² · 👥 Tối đa {room.maxOccupants} người · 📶 Free Wifi · 🍳 Bếp khép kín
-                      </div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#E8920A', marginTop: 8 }}>
-                        {(room.price).toLocaleString('vi-VN')} VND <span style={{ fontSize: '0.8rem', color: '#64748B' }}>/tháng</span>
-                      </div>
+              {roomTypes.map((rt) => (
+                <div key={rt.id} className="card" style={{ padding: 20, display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 20, alignItems: 'center' }}>
+                  <img 
+                    src={rt.images?.[0] || galleryImages[1]} 
+                    alt={rt.type} 
+                    style={{ width: '100%', height: 120, borderRadius: 12, objectFit: 'cover' }} 
+                  />
+                  <div>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                      <span className="badge badge-success">{rt.status || 'Có sẵn'}</span>
+                      <span style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: 600 }}>
+                        {rt.specificRooms?.length || 1} phòng trống ({rt.specificRooms?.slice(0, 3).join(', ')}...)
+                      </span>
                     </div>
-                    <button 
-                      className="btn btn-primary" 
-                      style={{ fontSize: '0.85rem' }}
-                      onClick={() => handleSelectRoom(room.id)}
-                    >
-                      Xem phòng →
-                    </button>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0F172A' }}>{rt.type}</h3>
+                    <div style={{ fontSize: '0.85rem', color: '#64748B', marginTop: 4 }}>
+                      📐 {rt.area || 30} m² · 👥 Tối đa {rt.maxOccupants || 2} người · 📶 Free Wifi · 🍳 Bếp khép kín
+                    </div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#E8920A', marginTop: 8 }}>
+                      {(rt.price || 4500000).toLocaleString('vi-VN')} VND <span style={{ fontSize: '0.8rem', color: '#64748B' }}>/tháng</span>
+                    </div>
                   </div>
-                ))
-              ) : (
-                <div className="card" style={{ padding: 30, textAlign: 'center', color: '#64748B' }}>
-                  Đang cập nhật danh sách phòng chi tiết cho tòa nhà này. Vui lòng liên hệ hotline để được hỗ trợ.
+                  <button 
+                    className="btn btn-primary" 
+                    style={{ fontSize: '0.88rem', fontWeight: 700, padding: '10px 18px', borderRadius: 10 }}
+                    onClick={() => handleSelectRoom(rt)}
+                  >
+                    Xem phòng →
+                  </button>
                 </div>
-              )}
+              ))}
             </div>
 
             {/* Building Info & Amenities */}

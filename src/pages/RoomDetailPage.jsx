@@ -1,8 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Share2, Heart, Calendar, Phone, ShieldCheck, CheckCircle2, Eye, Sparkles, Building2, X, PlayCircle } from 'lucide-react';
+import { 
+  MapPin, ArrowLeft, Phone, ShieldCheck, CheckCircle2, Eye, Sparkles, X, PlayCircle,
+  Wind, Droplets, WashingMachine, Refrigerator, BedDouble, Shirt, Blinds, ChefHat, 
+  Armchair, Wifi, Smartphone, PawPrint, Camera, Fingerprint, Bell, BellRing, 
+  ShowerHead, ArrowUpDown, ShieldAlert, Flame, DoorClosed, Sun, Bike
+} from 'lucide-react';
 import { DataService } from '../services/dataService';
-import MapView from '../components/MapView';
 import ImageLightboxModal from '../components/ImageLightboxModal';
+
+// Custom Amenity Item with rounded bordered box matching user screenshot
+function AmenityItem({ name }) {
+  const getIcon = (label) => {
+    const n = (label || '').toLowerCase().trim();
+    if (n.includes('điều hòa')) return <Wind size={16} color="#64748B" />;
+    if (n.includes('nóng lạnh') || n.includes('bình nóng lạnh')) return <Droplets size={16} color="#64748B" />;
+    if (n.includes('máy giặt') || n.includes('máy sấy')) return <WashingMachine size={16} color="#64748B" />;
+    if (n.includes('tủ lạnh')) return <Refrigerator size={16} color="#64748B" />;
+    if (n.includes('giường') || n.includes('đệm')) return <BedDouble size={16} color="#64748B" />;
+    if (n.includes('tủ quần áo') || n.includes('tủ áo')) return <Shirt size={16} color="#64748B" />;
+    if (n.includes('rèm') || n.includes('rèm cửa')) return <Blinds size={16} color="#64748B" />;
+    if (n.includes('bếp') || n.includes('tủ bếp')) return <ChefHat size={16} color="#64748B" />;
+    if (n.includes('sofa') || n.includes('bàn')) return <Armchair size={16} color="#64748B" />;
+    if (n.includes('wifi')) return <Wifi size={16} color="#64748B" />;
+    if (n.includes('app') || n.includes('hệ sinh thái') || n.includes('cư dân')) return <Smartphone size={16} color="#64748B" />;
+    if (n.includes('pet') || n.includes('thú cưng')) return <PawPrint size={16} color="#64748B" />;
+    if (n.includes('camera')) return <Camera size={16} color="#64748B" />;
+    if (n.includes('vân tay') || n.includes('khóa')) return <Fingerprint size={16} color="#64748B" />;
+    if (n.includes('chuông')) return <BellRing size={16} color="#64748B" />;
+    if (n.includes('báo cháy') || n.includes('báo khói') || n.includes('báo')) return <Bell size={16} color="#64748B" />;
+    if (n.includes('sprinkler') || n.includes('chữa cháy')) return <ShowerHead size={16} color="#64748B" />;
+    if (n.includes('thang máy')) return <ArrowUpDown size={16} color="#64748B" />;
+    if (n.includes('thang thoát hiểm') || n.includes('thang')) return <ShieldAlert size={16} color="#64748B" />;
+    if (n.includes('bình cứu hỏa') || n.includes('cứu hỏa')) return <Flame size={16} color="#64748B" />;
+    if (n.includes('cửa chống cháy') || n.includes('chống cháy')) return <DoorClosed size={16} color="#64748B" />;
+    if (n.includes('ban công') || n.includes('sân phơi')) return <Sun size={16} color="#64748B" />;
+    if (n.includes('xe điện') || n.includes('chỗ để xe')) return <Bike size={16} color="#64748B" />;
+    return <CheckCircle2 size={16} color="#64748B" />;
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{
+        width: 32,
+        height: 32,
+        minWidth: 32,
+        borderRadius: 8,
+        border: '1px solid #E2E8F0',
+        background: '#FFFFFF',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+      }}>
+        {getIcon(name)}
+      </div>
+      <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#334155' }}>
+        {name}
+      </span>
+    </div>
+  );
+}
 
 export default function RoomDetailPage({ roomId, _setActiveTab }) {
   const [room, setRoom] = useState(() => DataService.getRoomById(roomId) || DataService.getRooms()[0]);
@@ -15,15 +72,66 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
       const b = DataService.getBuildingById(r?.buildingId || r?.buildingCode) || DataService.getBuildings()[0];
       setRoom(r);
       setBuilding(b);
-      setBuildingRooms(DataService.getRoomsByBuilding(b?.id));
+      const bRooms = DataService.getRoomsByBuilding(b?.id);
+      setBuildingRooms(bRooms && bRooms.length > 0 ? bRooms : [r]);
     };
     syncData();
     const unsubscribe = DataService.subscribe(syncData);
     return () => unsubscribe();
   }, [roomId]);
 
-  const [selectedRoomNumber, setSelectedRoomNumber] = useState(room.roomNumber || '101');
-  const [isFavorite, setIsFavorite] = useState(false);
+  // Deduplicate building rooms into unique Room Types (Loại phòng)
+  const availableRoomTypes = (() => {
+    const rawList = buildingRooms && buildingRooms.length > 0 ? buildingRooms : [room];
+    const map = new Map();
+    rawList.forEach(r => {
+      const key = r.type?.trim() || 'Studio khép kín';
+      if (!map.has(key)) {
+        map.set(key, {
+          ...r,
+          specificRooms: r.specificRooms && r.specificRooms.length > 0 ? r.specificRooms : [r.roomNumber || '101']
+        });
+      } else {
+        const existing = map.get(key);
+        const mergedRooms = Array.from(new Set([
+          ...(existing.specificRooms || []),
+          ...(r.specificRooms || (r.roomNumber ? [r.roomNumber] : []))
+        ]));
+        map.set(key, {
+          ...existing,
+          specificRooms: mergedRooms
+        });
+      }
+    });
+    return Array.from(map.values());
+  })();
+  
+  // Active Room Type ID
+  const [selectedRoomTypeId, setSelectedRoomTypeId] = useState(room.id || availableRoomTypes[0]?.id);
+
+  // Fallback to active room type object
+  const activeRoomType = availableRoomTypes.find(r => r.id === selectedRoomTypeId) || availableRoomTypes[0] || room;
+
+  // Specific room numbers for active room type (Deduplicated)
+  const rawSpecificRooms = activeRoomType.specificRooms && activeRoomType.specificRooms.length > 0
+    ? activeRoomType.specificRooms
+    : (activeRoomType.roomNumber ? [activeRoomType.roomNumber] : ['501', '502', '503', '504']);
+  
+  const specificRoomsList = Array.from(new Set(rawSpecificRooms));
+
+  // Selected specific room number
+  const [selectedRoomNumber, setSelectedRoomNumber] = useState(specificRoomsList[0] || '501');
+
+  // Handle switching room types
+  const handleSelectRoomType = (rt) => {
+    setSelectedRoomTypeId(rt.id);
+    const rawList = rt.specificRooms && rt.specificRooms.length > 0
+      ? rt.specificRooms
+      : (rt.roomNumber ? [rt.roomNumber] : ['501', '502', '503', '504']);
+    const cleanList = Array.from(new Set(rawList));
+    setSelectedRoomNumber(cleanList[0] || '501');
+  };
+
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
 
   // Lightbox & Tour Modal state
@@ -36,12 +144,45 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [appointmentDate, setAppointmentDate] = useState('');
-  const [appointmentTime, setAppointmentTime] = useState('09:00');
+  const [appointmentTime, setAppointmentTime] = useState('10:00 AM');
 
-  const currentRoom = buildingRooms.find(r => r.roomNumber === selectedRoomNumber) || room;
-  const roomImages = currentRoom.images && currentRoom.images.length > 0 
-    ? currentRoom.images 
-    : (building.images && building.images.length > 0 ? building.images : [building.coverImage]);
+  // Images Gallery (Left 1 big + Right 4 small)
+  const galleryImages = Array.from(new Set([
+    ...(activeRoomType.images || []),
+    ...(building.images || []),
+    building.coverImage,
+    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=800&q=80'
+  ])).filter(Boolean);
+
+  // Host Info (Room or Building)
+  const hostName = activeRoomType.host?.name || building.host?.name || 'Ms. Huyền';
+  const hostPhone = activeRoomType.host?.phone || building.host?.phone || '0386570401';
+  const hostEmail = activeRoomType.host?.email || building.host?.email || 'email@example.com';
+
+  // Dynamic Synchronized Amenities (Room + Building Shared + PCCC & Security)
+  const roomFurniture = activeRoomType.amenitiesNoiThat && activeRoomType.amenitiesNoiThat.length > 0 
+    ? activeRoomType.amenitiesNoiThat 
+    : (activeRoomType.amenities?.furniture && activeRoomType.amenities.furniture.length > 0
+        ? activeRoomType.amenities.furniture 
+        : ['Điều hòa', 'Nóng lạnh', 'Máy giặt', 'Tủ lạnh', 'Giường', 'Tủ quần áo', 'Rèm cửa']);
+
+  const roomPrivate = activeRoomType.amenitiesRieng && activeRoomType.amenitiesRieng.length > 0 
+    ? activeRoomType.amenitiesRieng 
+    : (activeRoomType.amenities?.private && activeRoomType.amenities.private.length > 0
+        ? activeRoomType.amenities.private
+        : ['Wifi từng phòng', 'App hệ sinh thái cư dân']);
+
+  const securityAmenities = activeRoomType.amenitiesAnNinh && activeRoomType.amenitiesAnNinh.length > 0
+    ? activeRoomType.amenitiesAnNinh
+    : ['Camera an ninh'];
+
+  const pcccAmenities = Array.from(new Set([
+    ...(activeRoomType.amenitiesPccc || []),
+    ...(building.amenitiesPccc || ['Báo cháy', 'Chuông báo cháy'])
+  ]));
 
   const handleBookingSubmit = (e) => {
     e.preventDefault();
@@ -53,7 +194,7 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
     DataService.createBooking({
       customerName: fullName,
       phone: phone,
-      email: email || "khachhang@gmail.com",
+      email: email || "Chưa cung cấp",
       buildingCode: building.code,
       roomNumber: selectedRoomNumber,
       appointmentDate: appointmentDate || new Date().toISOString().split('T')[0],
@@ -64,313 +205,479 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
   };
 
   return (
-    <div style={{ padding: '30px 0' }}>
-      <div className="container">
-        {/* Breadcrumb */}
-        <p style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: 12 }}>
-          Trang chủ / Cho thuê / <span style={{ color: '#E8920A', fontWeight: 700 }}>Căn hộ {building.code}</span>
-        </p>
+    <div style={{ padding: '20px 0 60px 0', background: '#FAFAFA', minHeight: '100vh' }}>
+      <div className="container" style={{ maxWidth: 1160 }}>
+        {/* 1. BACK BUTTON */}
+        <div style={{ marginBottom: 14 }}>
+          <button 
+            type="button"
+            onClick={() => _setActiveTab ? _setActiveTab('search') : window.history.back()}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#64748B',
+              fontSize: '0.88rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: 0
+            }}
+          >
+            <ArrowLeft size={16} />
+            <span>Quay lại</span>
+          </button>
+        </div>
 
-        {/* Building Header Code */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-          <span className={`badge ${building.isTiny ? 'badge-tiny' : 'badge-primary'}`}>
-            {building.isTiny ? 'Tiny' : 'Đối tác'}
+        {/* 2. BUILDING TITLE & ADDRESS */}
+        <div style={{ marginBottom: 20 }}>
+          <h1 style={{ fontSize: '2rem', fontWeight: 900, color: '#0F172A', margin: '0 0 6px 0' }}>
+            {building.code}
+          </h1>
+          <p style={{ fontSize: '0.9rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
+            <MapPin size={16} color="#64748B" />
+            <span>{building.address}</span>
+          </p>
+        </div>
+
+        {/* 3. BENTO PHOTO GALLERY (1 Big Left + 4 Small Right) */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1.2fr 1fr',
+          gap: 12,
+          height: 380,
+          borderRadius: 16,
+          overflow: 'hidden',
+          marginBottom: 32,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.06)'
+        }}>
+          {/* Big Image (Left) */}
+          <div 
+            style={{ height: '100%', cursor: 'pointer', overflow: 'hidden', position: 'relative' }}
+            onClick={() => { setLightboxIndex(0); setLightboxOpen(true); }}
+          >
+            <img 
+              src={galleryImages[0]} 
+              alt="Main Room" 
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+            />
+          </div>
+
+          {/* 4 Small Images (Right 2x2 Grid) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 12, height: '100%' }}>
+            {galleryImages.slice(1, 5).map((img, idx) => (
+              <div 
+                key={idx}
+                style={{ cursor: 'pointer', overflow: 'hidden', position: 'relative' }}
+                onClick={() => { setLightboxIndex(idx + 1); setLightboxOpen(true); }}
+              >
+                <img 
+                  src={img} 
+                  alt={`Preview ${idx + 1}`} 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                />
+                {idx === 3 && (
+                  <button 
+                    type="button"
+                    style={{
+                      position: 'absolute', bottom: 10, right: 10, fontSize: '0.75rem',
+                      padding: '5px 12px', background: 'rgba(15,23,42,0.85)', color: '#fff',
+                      border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 6
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxIndex(0);
+                      setLightboxOpen(true);
+                    }}
+                  >
+                    <Eye size={12} color="#E8920A" />
+                    <span>Xem tất cả ảnh</span>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 4. SECTION: DANH SÁCH PHÒNG */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <Sparkles size={18} color="#E8920A" />
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0F172A', margin: 0 }}>
+              Danh sách phòng
+            </h2>
+          </div>
+          <p style={{ fontSize: '0.85rem', color: '#64748B', margin: 0 }}>
+            Chọn loại phòng và căn hộ phù hợp với bạn.
+          </p>
+        </div>
+
+        {/* 5. LOẠI PHÒNG SELECTOR PILLS */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+          {availableRoomTypes.map((rt) => {
+            const isSelected = rt.id === selectedRoomTypeId;
+            return (
+              <button
+                key={rt.id}
+                type="button"
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: 24,
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  background: isSelected ? '#E6F7F0' : '#ffffff',
+                  color: isSelected ? '#0D9488' : '#64748B',
+                  border: isSelected ? '1.5px solid #0D9488' : '1px solid #E2E8F0',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+                onClick={() => handleSelectRoomType(rt)}
+              >
+                {rt.maxOccupants || 2} khách • {rt.type || 'Studio'}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 6. SPECIFIC ROOM NUMBERS PILLS */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+          {specificRoomsList.map((num) => {
+            const isSelected = selectedRoomNumber === num;
+            return (
+              <button
+                key={num}
+                type="button"
+                onClick={() => setSelectedRoomNumber(num)}
+                style={{
+                  minWidth: 46,
+                  height: 34,
+                  padding: '0 12px',
+                  borderRadius: 8,
+                  fontSize: '0.88rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  background: isSelected ? '#0D9488' : '#ffffff',
+                  color: isSelected ? '#ffffff' : '#0D9488',
+                  border: isSelected ? '1.5px solid #0D9488' : '1.5px solid #CCFBF1',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: isSelected ? '0 4px 10px rgba(13, 148, 136, 0.25)' : 'none'
+                }}
+              >
+                {num}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 7. QUICK BADGES */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 28 }}>
+          <span style={{ background: '#CCFBF1', color: '#0F766E', padding: '4px 12px', borderRadius: 16, fontSize: '0.78rem', fontWeight: 700 }}>
+            {activeRoomType.area || 30}m²
           </span>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#0F172A' }}>{building.code}</h1>
-        </div>
-        <p style={{ fontSize: '0.95rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 24 }}>
-          <MapPin size={18} color="#E8920A" />
-          <span>{building.address}</span>
-        </p>
-
-        {/* Room List Selector Pills */}
-        <div className="card" style={{ padding: 20, marginBottom: 32 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <Building2 size={20} color="#E8920A" />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Danh sách phòng thuộc tòa {building.code}</h3>
-            <span style={{ fontSize: '0.85rem', color: '#64748B' }}>Chọn căn hộ bạn quan tâm để xem chi tiết.</span>
-          </div>
-
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {(building.rooms || ['101', '102', '201', '301']).map((num) => {
-              const isSelected = selectedRoomNumber === num;
-              return (
-                <button
-                  key={num}
-                  className={`btn ${isSelected ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{
-                    minWidth: 54,
-                    padding: '8px 16px',
-                    borderRadius: 10,
-                    fontWeight: 700,
-                    fontSize: '0.9rem'
-                  }}
-                  onClick={() => setSelectedRoomNumber(num)}
-                >
-                  Phòng {num}
-                </button>
-              );
-            })}
-          </div>
+          <span style={{ background: '#CCFBF1', color: '#0F766E', padding: '4px 12px', borderRadius: 16, fontSize: '0.78rem', fontWeight: 700 }}>
+            {activeRoomType.maxOccupants || 2} người
+          </span>
+          <span style={{ background: '#0D9488', color: '#ffffff', padding: '4px 12px', borderRadius: 16, fontSize: '0.78rem', fontWeight: 800 }}>
+            {specificRoomsList.length} phòng trống
+          </span>
         </div>
 
-        {/* MAIN LAYOUT: LEFT DETAILS & RIGHT BOOKING FORM */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 32 }}>
+        {/* 8. TWO-COLUMN MAIN BODY: LEFT DETAILS & RIGHT HOST/BOOKING */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 32, alignItems: 'start' }}>
           {/* LEFT COLUMN */}
           <div>
-            {/* Room Specs Header */}
-            <div style={{ background: '#0F172A', color: '#fff', borderRadius: '16px 16px 0 0', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: '1.4rem', fontWeight: 900 }}>Phòng {selectedRoomNumber}</span>
-                <span className="badge badge-success">{currentRoom.status || 'Có sẵn'}</span>
+            {/* ROOM SPECS TABLE BOX */}
+            <div style={{ border: '1px solid #E2E8F0', borderRadius: 12, overflow: 'hidden', marginBottom: 28, background: '#ffffff', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+              <div style={{ background: '#0F172A', color: '#ffffff', padding: '10px 18px', fontWeight: 800, fontSize: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>{selectedRoomNumber}</span>
+                <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>{activeRoomType.status || 'Có sẵn'}</span>
               </div>
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button style={{ background: 'none', color: '#fff' }} title="Chia sẻ phòng"><Share2 size={18} /></button>
-                <button 
-                  style={{ background: 'none', color: isFavorite ? '#EF4444' : '#fff' }} 
-                  onClick={() => setIsFavorite(!isFavorite)}
-                  title="Thêm yêu thích"
-                >
-                  <Heart size={18} fill={isFavorite ? '#EF4444' : 'none'} />
-                </button>
-              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #F1F5F9' }}>
+                    <td style={{ padding: '10px 18px', color: '#64748B', fontWeight: 600 }}>Giá thuê phòng</td>
+                    <td style={{ padding: '10px 18px', textAlign: 'right', fontWeight: 900, fontSize: '1.05rem', color: '#DC2626' }}>
+                      {(activeRoomType.price || 5000000).toLocaleString('vi-VN')}đ <span style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 500 }}>/tháng</span>
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #F1F5F9' }}>
+                    <td style={{ padding: '10px 18px', color: '#64748B', fontWeight: 600 }}>Loại phòng</td>
+                    <td style={{ padding: '10px 18px', textAlign: 'right', fontWeight: 800, color: '#0F172A' }}>
+                      {activeRoomType.type || 'Studio - Ban công'}
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #F1F5F9' }}>
+                    <td style={{ padding: '10px 18px', color: '#64748B', fontWeight: 600 }}>Diện tích</td>
+                    <td style={{ padding: '10px 18px', textAlign: 'right', fontWeight: 800, color: '#0F172A' }}>
+                      {activeRoomType.area || 30}m²
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #F1F5F9' }}>
+                    <td style={{ padding: '10px 18px', color: '#64748B', fontWeight: 600 }}>Số người ở tối đa</td>
+                    <td style={{ padding: '10px 18px', textAlign: 'right', fontWeight: 800, color: '#0F172A' }}>
+                      {activeRoomType.maxOccupants || 2} người
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 18px', color: '#64748B', fontWeight: 600 }}>Số phòng trống</td>
+                    <td style={{ padding: '10px 18px', textAlign: 'right', fontWeight: 800, color: '#0F172A' }}>
+                      {specificRoomsList.length}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
-            {/* Room Specs Table */}
-            <div className="card" style={{ borderRadius: '0 0 16px 16px', padding: 24, marginBottom: 32 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2e8f0', paddingBottom: 12 }}>
-                  <span style={{ color: '#64748B', fontWeight: 600 }}>Giá thuê phòng</span>
-                  <span style={{ fontSize: '1.4rem', fontWeight: 900, color: '#E8920A' }}>
-                    {(currentRoom.price || 3500000).toLocaleString('vi-VN')} VND <span style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 400 }}>/Tháng</span>
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2e8f0', paddingBottom: 12 }}>
-                  <span style={{ color: '#64748B', fontWeight: 600 }}>Loại phòng</span>
-                  <span style={{ fontWeight: 800 }}>{currentRoom.type || 'Studio khép kín'}</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2e8f0', paddingBottom: 12 }}>
-                  <span style={{ color: '#64748B', fontWeight: 600 }}>Diện tích</span>
-                  <span style={{ fontWeight: 800 }}>{currentRoom.area || 25} m²</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2e8f0', paddingBottom: 12 }}>
-                  <span style={{ color: '#64748B', fontWeight: 600 }}>Số người ở tối đa</span>
-                  <span style={{ fontWeight: 800 }}>{currentRoom.maxOccupants || 2} người</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#64748B', fontWeight: 600 }}>Thời gian trống</span>
-                  <span style={{ fontWeight: 800, color: '#10B981' }}>{currentRoom.availableFrom || 'Ở ngay'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* REAL INTERACTIVE LEAFLET MAPVIEW */}
-            <div className="card" style={{ padding: 20, marginBottom: 32 }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <MapPin size={18} color="#E8920A" />
-                <span>Bản đồ vị trí căn hộ {building.code}</span>
-              </h3>
-              
-              <MapView 
-                buildings={[building]}
-                selectedBuildingId={building.id}
-                height="280px"
-                zoom={15}
-              />
-            </div>
-
-            {/* AMENITIES SECTION */}
-            <div className="card" style={{ padding: 28 }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Sparkles size={20} color="#E8920A" />
-                <span>Tiện nghi & Tiện ích trang bị</span>
+            {/* AMENITIES SECTION (TIỆN NGHI & TIỆN ÍCH - EXACT ICONS MATCHING SCREENSHOT) */}
+            <div style={{ marginBottom: 28 }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 900, marginBottom: 20, color: '#0F172A' }}>
+                Tiện nghi & Tiện ích
               </h3>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                {/* Nội thất phòng */}
-                <div>
-                  <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#E8920A', marginBottom: 12 }}>◆ Nội thất phòng</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, fontSize: '0.85rem', color: '#334155' }}>
-                    {currentRoom.amenities?.furniture?.length > 0 ? (
-                      currentRoom.amenities.furniture.map((item, idx) => <div key={idx}>✓ {item}</div>)
-                    ) : (
-                      <>
-                        <div>❄ Điều hòa</div>
-                        <div>♨ Nóng lạnh</div>
-                        <div>🛏 Giường & Đệm</div>
-                        <div>👔 Tủ quần áo</div>
-                        <div>🧊 Tủ lạnh</div>
-                        <div>🍳 Tủ bếp cao cấp</div>
-                      </>
-                    )}
+                {/* 1. NỘI THẤT PHÒNG */}
+                {roomFurniture.length > 0 && (
+                  <div>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0D9488', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: '1.1rem' }}>✳</span> Nội thất phòng
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+                      {roomFurniture.map((item, idx) => (
+                        <AmenityItem key={idx} name={item} />
+                      ))}
+                    </div>
                   </div>
+                )}
+
+                {/* 2. TIỆN ÍCH RIÊNG */}
+                {roomPrivate.length > 0 && (
+                  <div>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0D9488', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: '1.1rem' }}>✳</span> Tiện ích riêng
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+                      {roomPrivate.map((item, idx) => (
+                        <AmenityItem key={idx} name={item} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. AN NINH - AN TOÀN */}
+                {securityAmenities.length > 0 && (
+                  <div>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0D9488', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: '1.1rem' }}>✳</span> An ninh - An toàn
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+                      {securityAmenities.map((item, idx) => (
+                        <AmenityItem key={idx} name={item} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. PHÒNG CHÁY CHỮA CHÁY */}
+                {pcccAmenities.length > 0 && (
+                  <div>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0D9488', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: '1.1rem' }}>✳</span> Phòng cháy chữa cháy
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+                      {pcccAmenities.map((item, idx) => (
+                        <AmenityItem key={idx} name={item} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* MÔ TẢ CHI TIẾT (RICH DESCRIPTION MATCHING SCREENSHOT) */}
+            <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #E2E8F0' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#0F172A', marginBottom: 14 }}>
+                Mô tả chi tiết
+              </h3>
+              
+              <div style={{ fontSize: '0.9rem', lineHeight: 1.7, color: '#334155', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontWeight: 800, color: '#D97706', fontSize: '0.92rem' }}>
+                  📍 CHO THUÊ {activeRoomType.type ? activeRoomType.type.toUpperCase() : 'STUDIO KHÉP KÍN CÓ BAN CÔNG'} - GIÁ ƯU ĐÃI - NỘI THẤT MỚI CƠ BẢN!
                 </div>
 
-                {/* Tiện ích riêng */}
                 <div>
-                  <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#E8920A', marginBottom: 12 }}>◆ Tiện ích riêng</h4>
-                  <div style={{ fontSize: '0.85rem', color: '#334155' }}>
-                    📶 Wifi tốc độ cao & Khóa vân tay từng phòng
-                  </div>
-                </div>
+                  {activeRoomType.description || (
+                    <>
+                      <p style={{ margin: '0 0 10px 0' }}>
+                        Bạn đang tìm kiếm một không gian sống gọn gàng, thoải mái và riêng tư? Căn hộ Studio khép kín với thiết kế hiện đại này chính là sự lựa chọn hoàn hảo, bạn chỉ cần dọn vào ở ngay!
+                      </p>
 
-                {/* Phòng cháy chữa cháy */}
-                <div>
-                  <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#E8920A', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <ShieldCheck size={16} color="#10B981" />
-                    <span>Phòng cháy chữa cháy (PCCC)</span>
-                  </h4>
-                  <div style={{ fontSize: '0.85rem', color: '#334155' }}>
-                    🚨 Hệ thống Sprinkler tự động, Bình chữa cháy & Thang thoát hiểm an toàn 100%
-                  </div>
+                      <div style={{ fontWeight: 800, color: '#0F172A', marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>✨</span> Thiết kế & Nội thất tiện nghi:
+                      </div>
+                      <ul style={{ margin: '4px 0 10px 0', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <li><strong>Không gian Studio:</strong> Được trang bị nội thất cơ bản mới, bao gồm giường ngủ và tủ quần áo bằng gỗ thiết kế hiện đại, đi kèm điều hòa mát lạnh.</li>
+                        <li><strong>Ban công siêu thoáng:</strong> Căn hộ sở hữu ban công đón nắng gió tự nhiên, đặc biệt được bố trí sẵn máy giặt riêng cực kỳ tiện lợi cho việc giặt giũ hàng ngày.</li>
+                        <li><strong>Vệ sinh khép kín:</strong> Nhà vệ sinh riêng biệt trong phòng đảm bảo sự riêng tư. Không gian ốp gạch sạch sẽ, trang bị đầy đủ thiết bị vệ sinh cao cấp như vòi sen cây, bồn cầu và lavabo.</li>
+                      </ul>
+
+                      <div style={{ fontWeight: 800, color: '#0F172A', marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>💖</span> Tiện ích & An ninh tòa nhà:
+                      </div>
+                      <ul style={{ margin: '4px 0 10px 0', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <li><strong>Tầng thượng cực rộng:</strong> Sở hữu khu vực sân thượng lợp mái che vô cùng rộng rãi, lát gạch sạch sẽ, là không gian lý tưởng để cư dân thư giãn, hóng gió.</li>
+                        <li><strong>An ninh 24/7:</strong> Hệ thống ra vào kiểm soát bằng khóa vân tay và camera an ninh giám sát liên tục.</li>
+                        <li><strong>PCCC đạt chuẩn an toàn:</strong> Tòa nhà trang bị hệ thống phòng cháy chữa cháy cực kỳ bài bản bao gồm: Sprinkler, báo cháy, báo khói, chuông báo cháy, thang thoát hiểm, cửa chống cháy và bình cứu hỏa.</li>
+                      </ul>
+
+                      <p style={{ margin: '10px 0 0 0', fontWeight: 700, color: '#0F766E' }}>
+                        Căn hộ đang có mức giá siêu ưu đãi dành cho khách chốt sớm! Nhanh tay "Đặt Lịch" để hẹn xem phòng sớm nhất nhaaaa!
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* RIGHT COLUMN: GALLERY & BOOKING FORM */}
-          <div>
-            {/* Top Photo Gallery Grid */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
-              <div 
-                style={{ height: 220, borderRadius: 16, overflow: 'hidden', position: 'relative', cursor: 'pointer' }}
-                onClick={() => {
-                  setLightboxIndex(0);
-                  setLightboxOpen(true);
-                }}
-              >
-                <img src={roomImages[0] || building.coverImage} alt="Main Room" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                <button 
-                  className="btn btn-secondary" 
-                  style={{ position: 'absolute', bottom: 12, right: 12, fontSize: '0.8rem', padding: '6px 12px', background: 'rgba(15,23,42,0.85)', color: '#fff' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setTourModalOpen(true);
-                  }}
-                >
-                  <Eye size={14} color="#E8920A" />
-                  <span>Xem Tour 360° / Video</span>
-                </button>
+          {/* RIGHT COLUMN: HOST INFO & BOOKING FORM */}
+          <div style={{ position: 'sticky', top: 90 }}>
+            {/* HOST CONTACT CARD */}
+            <div className="card" style={{ padding: 18, borderRadius: 14, marginBottom: 16, border: '1px solid #E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748B', marginBottom: 10 }}>
+                Thông tin chủ nhà
               </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                {roomImages.slice(0, 4).map((img, i) => (
-                  <img 
-                    key={i} 
-                    src={img} 
-                    alt="Thumbnail" 
-                    onClick={() => {
-                      setLightboxIndex(i);
-                      setLightboxOpen(true);
-                    }}
-                    style={{ width: '100%', height: 70, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }} 
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Host Card */}
-            <div className="card" style={{ padding: 18, display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-              <img 
-                src={building.host?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"} 
-                alt={building.host?.name || "Tiny Houses"} 
-                style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} 
-              />
-              <div>
-                <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{building.host?.name || "Đỗ Thảo Nguyên"}</div>
-                <div style={{ fontSize: '0.8rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Phone size={12} color="#E8920A" />
-                  <span>{building.host?.phone || "0167423824"}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                <div style={{
+                  width: 38, height: 38, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                  color: '#ffffff', fontWeight: 900, fontSize: '1.1rem',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  {hostName.charAt(0) || 'M'}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{building.host?.email || "tinyhouse.info@gmail.com"}</div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A' }}>{hostName}</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.82rem', color: '#64748B', paddingTop: 8, borderTop: '1px solid #F1F5F9' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Phone size={13} color="#64748B" />
+                  <span>{hostPhone}</span>
+                </div>
+                {hostEmail && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>✉️</span>
+                    <span>{hostEmail}</span>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* BOOKING CALENDAR FORM */}
-            <div className="card" style={{ padding: 24, borderTop: '4px solid #E8920A' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Calendar size={18} color="#E8920A" />
-                <span>Đặt lịch xem phòng {selectedRoomNumber}</span>
-              </h3>
+            <div className="card" style={{ padding: 20, borderRadius: 14, border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
+              <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0F172A', marginBottom: 14 }}>
+                Đặt lịch xem phòng
+              </div>
 
               {bookingSubmitted ? (
-                <div style={{ background: '#D1FAE5', color: '#065F46', padding: 16, borderRadius: 12, fontSize: '0.9rem', textAlign: 'center' }}>
-                  <CheckCircle2 size={32} color="#10B981" style={{ margin: '0 auto 8px auto' }} />
-                  <div style={{ fontWeight: 800 }}>Đặt lịch xem phòng thành công!</div>
-                  <div style={{ fontSize: '0.8rem', marginTop: 4 }}>Đội ngũ Tiny Houses sẽ liên hệ với bạn trong 15 phút.</div>
+                <div style={{ background: '#D1FAE5', color: '#065F46', padding: 14, borderRadius: 10, fontSize: '0.85rem', textAlign: 'center' }}>
+                  <CheckCircle2 size={28} color="#10B981" style={{ margin: '0 auto 6px auto' }} />
+                  <div style={{ fontWeight: 800 }}>Đặt lịch thành công!</div>
+                  <div style={{ fontSize: '0.78rem', marginTop: 4 }}>Tiny Houses sẽ liên hệ với bạn trong 15 phút.</div>
                   <button 
                     className="btn btn-primary" 
-                    style={{ marginTop: 12, width: '100%', fontSize: '0.85rem' }}
+                    style={{ marginTop: 10, width: '100%', fontSize: '0.8rem', padding: '6px' }}
                     onClick={() => setBookingSubmitted(false)}
                   >
                     Đặt lịch khác
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleBookingSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <form onSubmit={handleBookingSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Họ và tên *</label>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Tên</label>
                     <input 
                       type="text" 
-                      placeholder="Nhập họ tên" 
+                      placeholder="Họ và tên" 
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required 
-                      style={{ width: '100%' }}
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '0.85rem', borderRadius: 8, border: '1px solid #CBD5E1' }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Số điện thoại *</label>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Số điện thoại</label>
                     <input 
                       type="tel" 
-                      placeholder="Nhập số điện thoại" 
+                      placeholder="0912 345 678" 
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       required 
-                      style={{ width: '100%' }}
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '0.85rem', borderRadius: 8, border: '1px solid #CBD5E1' }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Email liên hệ</label>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Email</label>
                     <input 
                       type="email" 
-                      placeholder="Nhập địa chỉ email" 
+                      placeholder="email@example.com" 
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      style={{ width: '100%' }}
+                      style={{ width: '100%', padding: '8px 10px', fontSize: '0.85rem', borderRadius: 8, border: '1px solid #CBD5E1' }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Ngày giờ xem phòng</label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Thời gian hẹn</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 6 }}>
                       <input 
                         type="date" 
                         value={appointmentDate}
                         onChange={(e) => setAppointmentDate(e.target.value)}
-                        style={{ width: '100%' }}
+                        style={{ width: '100%', padding: '6px 8px', fontSize: '0.78rem', borderRadius: 8, border: '1px solid #CBD5E1' }}
                       />
-                      <input 
-                        type="time" 
+                      <select 
                         value={appointmentTime}
                         onChange={(e) => setAppointmentTime(e.target.value)}
-                        style={{ width: '100%' }}
-                      />
+                        style={{ width: '100%', padding: '6px 8px', fontSize: '0.78rem', borderRadius: 8, border: '1px solid #CBD5E1', background: '#fff' }}
+                      >
+                        <option value="09:00 AM">09:00 AM</option>
+                        <option value="10:00 AM">10:00 AM</option>
+                        <option value="11:00 AM">11:00 AM</option>
+                        <option value="02:00 PM">02:00 PM</option>
+                        <option value="04:00 PM">04:00 PM</option>
+                        <option value="06:00 PM">06:00 PM</option>
+                      </select>
                     </div>
                   </div>
 
                   <button 
                     type="submit" 
                     className="btn btn-primary" 
-                    style={{ width: '100%', padding: '14px', marginTop: 10, fontSize: '1rem', fontWeight: 800 }}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      marginTop: 4,
+                      fontSize: '0.9rem',
+                      fontWeight: 800,
+                      borderRadius: 8,
+                      background: 'linear-gradient(135deg, #F59E0B 0%, #E8920A 100%)',
+                      border: 'none',
+                      color: '#ffffff',
+                      boxShadow: '0 4px 12px rgba(232, 146, 10, 0.25)'
+                    }}
                   >
-                    Đặt lịch xem phòng
+                    Đặt lịch
                   </button>
                 </form>
               )}
@@ -383,90 +690,11 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
       <ImageLightboxModal
         isOpen={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
-        images={roomImages}
+        images={galleryImages}
         currentIndex={lightboxIndex}
         onIndexChange={setLightboxIndex}
         title={`Ảnh căn hộ ${selectedRoomNumber} - Tòa ${building.code}`}
       />
-
-      {/* Virtual Tour 360 / Video Modal */}
-      {tourModalOpen && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            zIndex: 9999,
-            backgroundColor: 'rgba(15, 23, 42, 0.9)',
-            backdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20
-          }}
-          onClick={() => setTourModalOpen(false)}
-        >
-          <div 
-            style={{
-              width: '100%',
-              maxWidth: 800,
-              background: '#0F172A',
-              borderRadius: 20,
-              padding: 24,
-              color: '#fff',
-              position: 'relative',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <PlayCircle size={24} color="#E8920A" />
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>
-                  Virtual Tour 360° & Video Căn hộ {selectedRoomNumber}
-                </h3>
-              </div>
-              <button 
-                onClick={() => setTourModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div style={{ height: 400, borderRadius: 12, overflow: 'hidden', background: '#020617', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-              <img 
-                src={roomImages[0] || building.coverImage} 
-                alt="Room Tour 360" 
-                style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} 
-              />
-              <div style={{
-                position: 'absolute',
-                background: 'rgba(15, 23, 42, 0.85)',
-                padding: '20px 32px',
-                borderRadius: 16,
-                textAlign: 'center',
-                border: '1px solid rgba(232, 146, 10, 0.4)'
-              }}>
-                <PlayCircle size={48} color="#E8920A" style={{ marginBottom: 12 }} />
-                <h4 style={{ margin: '0 0 8px 0', fontSize: '1.1rem' }}>Trải nghiệm góc nhìn 360° thực tế</h4>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>
-                  Không gian căn hộ {selectedRoomNumber} trang bị đầy đủ nội thất cao cấp Tiny Houses
-                </p>
-              </div>
-            </div>
-
-            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>💡 Bạn cũng có thể đăng ký lịch hẹn để xem phòng trực tiếp.</span>
-              <button 
-                className="btn btn-primary"
-                onClick={() => setTourModalOpen(false)}
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,16 +1,65 @@
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Building2, Home, Calendar, Users, FileText, Settings, Download, Upload, 
-  RefreshCw, CheckCircle2, ShieldCheck, Plus, Edit, Trash2, ShieldAlert, LogOut, X, ArrowUpDown, Clock, Search, Menu
+  RefreshCw, CheckCircle2, ShieldCheck, Plus, Edit, Trash2, ShieldAlert, LogOut, X, ArrowUpDown, Clock, Search, Menu, Sparkles
 } from 'lucide-react';
 import { DataService } from '../../services/dataService';
 import { ApiClient } from '../../services/apiClient';
 import Pagination from '../../components/Pagination';
 import Logo from '../../components/Logo';
 import MultiImageUploader from '../../components/MultiImageUploader';
+import BuildingLocationPicker from '../../components/BuildingLocationPicker';
+import RoomDetailsForm from '../../components/RoomDetailsForm';
+import SpecificRoomsSection from '../../components/SpecificRoomsSection';
 
-export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
+export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenAuthModal }) {
+  // If not logged in, show access restriction screen
+  if (!currentUser) {
+    return (
+      <div className="container" style={{ padding: '80px 20px', display: 'flex', justifyContent: 'center' }}>
+        <div style={{
+          background: '#ffffff',
+          borderRadius: 20,
+          padding: 40,
+          maxWidth: 520,
+          width: '100%',
+          textAlign: 'center',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.08)',
+          border: '1px solid #F1F5F9'
+        }}>
+          <div style={{
+            width: 72,
+            height: 72,
+            background: '#FFF7ED',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 20px auto'
+          }}>
+            <ShieldAlert size={36} color="#E8920A" />
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#0F172A', marginBottom: 10 }}>
+            Yêu cầu Đăng nhập Quản trị
+          </h2>
+          <p style={{ color: '#64748B', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: 28 }}>
+            Khu vực Bảng điều khiển CMS dành riêng cho Ban quản lý, Super Admin và Cộng tác viên Sale. Vui lòng đăng nhập tài khoản của bạn để tiếp tục.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <button className="btn btn-secondary" style={{ padding: '10px 20px' }} onClick={() => setActiveTab('home')}>
+              Về Trang chủ
+            </button>
+            <button className="btn btn-primary" style={{ padding: '10px 24px' }} onClick={() => onOpenAuthModal && onOpenAuthModal('login')}>
+              Đăng nhập ngay
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const [activeCmsSection, setActiveCmsSection] = useState('dashboard');
+
   const [notification, setNotification] = useState('');
   const [permSubTab, setPermSubTab] = useState('pending'); // 'roles', 'users', 'pending'
 
@@ -130,7 +179,8 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
   // Responsive Drawer Sidebar State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Room Management Specific States (Building Selection & Quick Search)
+  // Building & Room Search States
+  const [buildingSearchQuery, setBuildingSearchQuery] = useState('');
   const [selectedBuildingForRooms, setSelectedBuildingForRooms] = useState('');
   const [buildingSearchInRooms, setBuildingSearchInRooms] = useState('');
   const [roomSearchQuery, setRoomSearchQuery] = useState('');
@@ -193,8 +243,19 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
     setTimeout(() => setNotification(''), 4000);
   };
 
-  // Process sorted buildings
-  const sortedBuildings = [...buildings].sort((a, b) => {
+  // Process sorted buildings with search filter
+  const filteredCmsBuildings = buildings.filter(b => {
+    if (!buildingSearchQuery) return true;
+    const q = buildingSearchQuery.toLowerCase().trim();
+    return (
+      (b.code && b.code.toLowerCase().includes(q)) ||
+      (b.name && b.name.toLowerCase().includes(q)) ||
+      (b.address && b.address.toLowerCase().includes(q)) ||
+      (b.district && b.district.toLowerCase().includes(q))
+    );
+  });
+
+  const sortedBuildings = [...filteredCmsBuildings].sort((a, b) => {
     if (buildingSortBy === 'vacant-desc') return (b.vacantRoomsCount || 0) - (a.vacantRoomsCount || 0);
     if (buildingSortBy === 'vacant-asc') return (a.vacantRoomsCount || 0) - (b.vacantRoomsCount || 0);
     if (buildingSortBy === 'price-asc') return (a.minPrice || 0) - (b.minPrice || 0);
@@ -252,7 +313,9 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
         code: bldg.code,
         name: bldg.name,
         address: bldg.address,
+        city: bldg.city || 'Hà Nội',
         district: bldg.district || 'Hà Đông',
+        ward: bldg.ward || '',
         latitude: bldg.latitude || 20.9715,
         longitude: bldg.longitude || 105.7780,
         minPrice: bldg.minPrice || 3500000,
@@ -274,13 +337,15 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
         code: `TN${Math.floor(100 + Math.random() * 900)}`,
         name: '',
         address: '',
-        district: 'Hà Đông',
-        latitude: 20.9715,
-        longitude: 105.7780,
+        city: 'Hà Nội',
+        district: 'Nam Từ Liêm',
+        ward: 'Phường Đại Mỗ',
+        latitude: 21.0125,
+        longitude: 105.7650,
         minPrice: 3500000,
         maxPrice: 6500000,
         isTiny: true,
-        ownerType: 'tiny',
+        ownerType: 'partner',
         vacantRoomsCount: 5,
         coverImage: '',
         images: [],
@@ -322,7 +387,9 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
       code: buildingForm.code,
       name: buildingForm.name || `Tòa nhà ${buildingForm.code} - ${buildingForm.address}`,
       address: buildingForm.address,
+      city: buildingForm.city || 'Hà Nội',
       district: buildingForm.district,
+      ward: buildingForm.ward || '',
       latitude: Number(buildingForm.latitude),
       longitude: Number(buildingForm.longitude),
       minPrice: Number(buildingForm.minPrice),
@@ -346,30 +413,98 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
     showToast(editingBuilding ? `Đã cập nhật Tòa nhà ${buildingForm.code}` : `Thêm Tòa nhà mới ${buildingForm.code} thành công!`);
   };
 
+  // Quick Update Vacant Rooms Count & Quick Delete Handler
+  const handleQuickUpdateRoomVacant = (room, delta) => {
+    const currentVacant = room.vacantCount ?? (room.specificRooms && room.specificRooms.length ? room.specificRooms.length : (room.status === 'Có sẵn' ? 1 : 0));
+    const newVacant = Math.max(0, currentVacant + delta);
+    const newStatus = newVacant > 0 ? 'Có sẵn' : 'Đã thuê';
+
+    let updatedSpecificRooms = room.specificRooms ? [...room.specificRooms] : [room.roomNumber];
+    if (delta > 0) {
+      const nextIndex = updatedSpecificRooms.length + 1;
+      const baseCode = room.roomNumber || '101';
+      const cleanCode = baseCode.replace(/[^0-9]/g, '') || '101';
+      const nextCode = `P${parseInt(cleanCode) + nextIndex - 1}`;
+      if (!updatedSpecificRooms.includes(nextCode)) {
+        updatedSpecificRooms.push(nextCode);
+      } else {
+        updatedSpecificRooms.push(`P${parseInt(cleanCode) + Math.floor(Math.random() * 89 + 10)}`);
+      }
+    } else if (delta < 0 && updatedSpecificRooms.length > 0) {
+      updatedSpecificRooms.pop();
+    }
+
+    const updatedRoom = {
+      ...room,
+      specificRooms: updatedSpecificRooms,
+      vacantCount: updatedSpecificRooms.length,
+      status: updatedSpecificRooms.length > 0 ? 'Có sẵn' : 'Đã thuê'
+    };
+
+    const freshRooms = DataService.saveRoom(updatedRoom);
+    setRooms(freshRooms);
+
+    // Also update Building vacantRoomsCount
+    const targetBld = buildings.find(b => b.code === room.buildingCode || b.id === room.buildingId);
+    if (targetBld) {
+      const bldRooms = freshRooms.filter(r => r.buildingCode === targetBld.code || r.buildingId === targetBld.id);
+      const totalVacantInBld = bldRooms.reduce((acc, r) => {
+        const rVacant = r.specificRooms && r.specificRooms.length ? r.specificRooms.length : (r.status === 'Có sẵn' ? 1 : 0);
+        return acc + rVacant;
+      }, 0);
+
+      const updatedBld = { ...targetBld, vacantRoomsCount: totalVacantInBld };
+      const freshBuildings = DataService.saveBuilding(updatedBld);
+      setBuildings(freshBuildings);
+    }
+
+    showToast(`✅ Đã cập nhật số lượng phòng trống Căn ${room.roomNumber}: ${updatedRoom.vacantCount} phòng (${updatedRoom.status})`);
+  };
+
+  const handleDeleteRoom = (roomId, roomNumber) => {
+    if (confirm(`Bạn có chắc chắn muốn xóa Căn ${roomNumber}?`)) {
+      const updatedRooms = rooms.filter(r => r.id !== roomId);
+      setRooms(updatedRooms);
+      showToast(`❌ Đã xóa Căn ${roomNumber}.`);
+    }
+  };
+
   // Room Detailed Modal Handlers
   const handleOpenRoomModal = (rm = null) => {
     setRoomTab('basic');
     if (rm) {
       setEditingRoom(rm);
+      const existingRooms = rm.specificRooms && rm.specificRooms.length > 0
+        ? rm.specificRooms
+        : (rm.roomNumber ? [rm.roomNumber] : ['501', '502', '503', '504']);
+
       setRoomForm({
         buildingCode: rm.buildingCode,
-        roomNumber: rm.roomNumber,
-        type: rm.type,
-        price: rm.price,
+        roomNumber: existingRooms[0] || rm.roomNumber || '501',
+        type: rm.type || 'Studio khép kín',
+        price: rm.price || 3500000,
         area: rm.area || 25,
         maxOccupants: rm.maxOccupants || 2,
         availableFrom: rm.availableFrom || 'Ở ngay',
-        status: rm.status,
+        status: rm.status || 'Có sẵn',
         coverImage: rm.images && rm.images.length ? rm.images[0] : '',
         images: rm.images && rm.images.length ? rm.images : [],
-        amenitiesFurniture: rm.amenities?.furniture || ['Điều hòa', 'Nóng lạnh', 'Giường', 'Tủ quần áo'],
-        amenitiesPrivate: rm.amenities?.private || ['Wifi từng phòng', 'Khóa vân tay', 'Ban công']
+        specificRooms: existingRooms,
+        hostName: rm.host?.name || 'Ms. Huyền',
+        hostPhone: rm.host?.phone || '0386570401',
+        hostEmail: rm.host?.email || 'tinyhouse.info@gmail.com',
+        description: rm.description || '✨ Căn hộ cao cấp phong cách Hiện Đại – Đỉnh cao tinh tế & Tiện nghi đẳng cấp!',
+        amenitiesNoiThat: rm.amenitiesNoiThat || ['Điều hòa', 'Nóng lạnh', 'Máy giặt', 'Tủ lạnh', 'Giường', 'Tủ quần áo', 'Rèm cửa'],
+        amenitiesRieng: rm.amenitiesRieng || ['Wifi từng phòng', 'App hệ sinh thái cư dân'],
+        amenitiesChung: rm.amenitiesChung || ['Thang máy', 'Sân phơi'],
+        amenitiesAnNinh: rm.amenitiesAnNinh || ['Khóa vân tay', 'Camera an ninh'],
+        amenitiesPccc: rm.amenitiesPccc || ['Sprinkler', 'Báo cháy', 'Thang thoát hiểm', 'Bình cứu hỏa']
       });
     } else {
       setEditingRoom(null);
       setRoomForm({
         buildingCode: selectedBuildingForRooms || buildings[0]?.code || 'TN008',
-        roomNumber: `${Math.floor(100 + Math.random() * 800)}`,
+        roomNumber: '501',
         type: 'Studio khép kín',
         price: 3500000,
         area: 25,
@@ -378,20 +513,19 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
         status: 'Có sẵn',
         coverImage: '',
         images: [],
-        amenitiesFurniture: ['Điều hòa', 'Nóng lạnh', 'Giường nệm', 'Tủ quần áo'],
-        amenitiesPrivate: ['Wifi từng phòng', 'Khóa vân tay', 'Ban công']
+        specificRooms: ['501', '502', '503', '504'],
+        hostName: 'Ms. Huyền',
+        hostPhone: '0386570401',
+        hostEmail: 'tinyhouse.info@gmail.com',
+        description: '✨ Căn hộ cao cấp phong cách Hiện Đại – Đỉnh cao tinh tế & Tiện nghi đẳng cấp!',
+        amenitiesNoiThat: ['Điều hòa', 'Nóng lạnh', 'Máy giặt', 'Tủ lạnh', 'Giường', 'Tủ quần áo', 'Rèm cửa'],
+        amenitiesRieng: ['Wifi từng phòng', 'App hệ sinh thái cư dân'],
+        amenitiesChung: ['Thang máy', 'Sân phơi'],
+        amenitiesAnNinh: ['Khóa vân tay', 'Camera an ninh'],
+        amenitiesPccc: ['Sprinkler', 'Báo cháy', 'Thang thoát hiểm', 'Bình cứu hỏa']
       });
     }
     setShowRoomModal(true);
-  };
-
-  const handleToggleFurniture = (item) => {
-    const list = roomForm.amenitiesFurniture || [];
-    if (list.includes(item)) {
-      setRoomForm({ ...roomForm, amenitiesFurniture: list.filter(i => i !== item) });
-    } else {
-      setRoomForm({ ...roomForm, amenitiesFurniture: [...list, item] });
-    }
   };
 
   const handleSaveRoomSubmit = (e) => {
@@ -410,15 +544,28 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
       availableFrom: roomForm.availableFrom,
       status: roomForm.status,
       images: roomImages,
+      specificRooms: roomForm.specificRooms || [roomForm.roomNumber],
+      vacantCount: roomForm.specificRooms ? roomForm.specificRooms.length : (roomForm.status === 'Có sẵn' ? 1 : 0),
+      host: {
+        name: roomForm.hostName,
+        phone: roomForm.hostPhone,
+        email: roomForm.hostEmail
+      },
+      description: roomForm.description,
+      amenitiesNoiThat: roomForm.amenitiesNoiThat,
+      amenitiesRieng: roomForm.amenitiesRieng,
+      amenitiesChung: roomForm.amenitiesChung,
+      amenitiesAnNinh: roomForm.amenitiesAnNinh,
+      amenitiesPccc: roomForm.amenitiesPccc,
       amenities: {
-        furniture: roomForm.amenitiesFurniture,
-        private: roomForm.amenitiesPrivate
+        furniture: roomForm.amenitiesNoiThat || [],
+        private: roomForm.amenitiesRieng || []
       }
     });
 
     setRooms(updated);
     setShowRoomModal(false);
-    showToast(editingRoom ? `Đã cập nhật Căn ${roomForm.roomNumber}` : `Thêm Căn hộ ${roomForm.roomNumber} mới thành công!`);
+    showToast(editingRoom ? `Đã cập nhật Loại phòng: ${roomForm.type}` : `Thêm Loại phòng: ${roomForm.type} mới thành công!`);
   };
 
   // Role Modal Handlers
@@ -809,8 +956,13 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
         {/* SECTION: BUILDINGS */}
         {activeCmsSection === 'buildings' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
-              <h1 style={{ fontSize: '1.8rem', fontWeight: 900 }}>Danh sách Tòa nhà ({buildings.length})</h1>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 16 }}>
+              <div>
+                <h1 style={{ fontSize: '1.8rem', fontWeight: 900 }}>Danh sách Tòa nhà ({filteredCmsBuildings.length} / {buildings.length})</h1>
+                <p style={{ color: '#64748B', fontSize: '0.9rem', marginTop: 2 }}>
+                  Quản lý danh mục, địa chỉ, bản đồ định vị và số lượng phòng trống của từng tòa nhà
+                </p>
+              </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 {/* SORT CONTROL */}
@@ -837,6 +989,28 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
                   <Plus size={18} />
                   <span>Thêm Tòa nhà mới</span>
                 </button>
+              </div>
+            </div>
+
+            {/* THANH TÌM KIẾM TÒA NHÀ REALTIME */}
+            <div className="card" style={{ padding: 16, marginBottom: 20, background: '#ffffff', borderRadius: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <Search size={20} color="#E8920A" />
+                <input 
+                  type="text" 
+                  placeholder="🔍 Tìm nhanh Tòa nhà theo Mã tòa (TN008, DT0047), Tên tòa, Địa chỉ, Quận..." 
+                  value={buildingSearchQuery} 
+                  onChange={(e) => {
+                    setBuildingSearchQuery(e.target.value);
+                    setBuildingPage(1);
+                  }} 
+                  style={{ flex: 1, border: 'none', background: 'none', fontSize: '0.95rem', fontWeight: 700, outline: 'none' }} 
+                />
+                {buildingSearchQuery && (
+                  <button style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }} onClick={() => { setBuildingSearchQuery(''); setBuildingPage(1); }}>
+                    <X size={18} />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1051,7 +1225,7 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
                           style={{ padding: '8px 18px', fontSize: '0.85rem', fontWeight: 800 }}
                           onClick={() => handleOpenRoomModal(null)}
                         >
-                          ➕ Thêm phòng vào {selectedBuildingForRooms}
+                          ➕ Thêm loại phòng vào {selectedBuildingForRooms}
                         </button>
                       </div>
                     </div>
@@ -1094,15 +1268,16 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
                   </div>
                 </div>
 
-                {/* BẢNG DANH SÁCH PHÒNG CỦA TÒA ĐÃ CHỌN */}
+                {/* BẢNG DANH SÁCH LOẠI PHÒNG & SỐ PHÒNG CỦA TÒA ĐÃ CHỌN */}
                 <div className="card" style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                     <thead>
                       <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
-                        <th style={{ padding: 14 }}>Số phòng</th>
-                        <th style={{ padding: 14 }}>Loại phòng & Diện tích</th>
+                        <th style={{ padding: 14 }}>Tên Loại phòng</th>
+                        <th style={{ padding: 14 }}>Danh sách số phòng (room_numbers)</th>
+                        <th style={{ padding: 14 }}>Diện tích & Số người</th>
                         <th style={{ padding: 14 }}>Mức giá / tháng</th>
-                        <th style={{ padding: 14 }}>Trạng thái</th>
+                        <th style={{ padding: 14 }}>Số phòng trống</th>
                         <th style={{ padding: 14, textAlign: 'right' }}>Thao tác</th>
                       </tr>
                     </thead>
@@ -1117,44 +1292,108 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
                             (r.roomNumber && String(r.roomNumber).toLowerCase().includes(q)) ||
                             (r.type && r.type.toLowerCase().includes(q)) ||
                             (r.price && String(r.price).includes(q)) ||
-                            (r.status && r.status.toLowerCase().includes(q))
+                            (r.status && r.status.toLowerCase().includes(q)) ||
+                            (r.specificRooms && r.specificRooms.some(sr => String(sr).toLowerCase().includes(q)))
                           );
                         });
 
                         if (filteredRoomsInBld.length === 0) {
                           return (
                             <tr>
-                              <td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#64748B' }}>
-                                <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0F172A', marginBottom: 4 }}>Không tìm thấy phòng nào phù hợp!</div>
-                                <div style={{ fontSize: '0.85rem' }}>Thử đổi từ khóa tìm kiếm hoặc bấm "Thêm Căn hộ mới".</div>
+                              <td colSpan={6} style={{ textAlign: 'center', padding: 40, color: '#64748B' }}>
+                                <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0F172A', marginBottom: 4 }}>Không tìm thấy loại phòng nào phù hợp!</div>
+                                <div style={{ fontSize: '0.85rem' }}>Thử đổi từ khóa tìm kiếm hoặc bấm "Thêm loại phòng mới".</div>
                               </td>
                             </tr>
                           );
                         }
 
-                        return filteredRoomsInBld.map((r) => (
-                          <tr key={r.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                            <td style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <img src={r.images && r.images.length ? r.images[0] : 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80'} alt={r.roomNumber} style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover' }} />
-                              <span style={{ fontWeight: 800 }}>Căn {r.roomNumber}</span>
-                            </td>
-                            <td style={{ padding: 14 }}>
-                              <div style={{ fontWeight: 700 }}>{r.type}</div>
-                              <div style={{ fontSize: '0.75rem', color: '#64748B' }}>📐 {r.area} m² · 👥 Tối đa {r.maxOccupants} người</div>
-                            </td>
-                            <td style={{ padding: 14, fontWeight: 800, color: '#E8920A' }}>{(r.price).toLocaleString('vi-VN')} VND</td>
-                            <td style={{ padding: 14 }}>
-                              <span className={`badge ${r.status === 'Có sẵn' ? 'badge-success' : 'badge-warning'}`}>
-                                {r.status}
-                              </span>
-                            </td>
-                            <td style={{ padding: 14, textAlign: 'right' }}>
-                              <button style={{ background: 'none', color: '#64748B', marginRight: 10 }} title="Sửa chi tiết" onClick={() => handleOpenRoomModal(r)}>
-                                <Edit size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                        ));
+                        return filteredRoomsInBld.map((r) => {
+                          const roomList = r.specificRooms && r.specificRooms.length > 0 
+                            ? r.specificRooms 
+                            : (r.roomNumber ? [r.roomNumber] : ['501']);
+
+                          return (
+                            <tr key={r.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                              <td style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <img src={r.images && r.images.length ? r.images[0] : 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80'} alt={r.type} style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover' }} />
+                                <div>
+                                  <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A' }}>{r.type}</span>
+                                  <div style={{ fontSize: '0.75rem', color: '#64748B' }}>Mã: {r.id?.slice(0, 10)}</div>
+                                </div>
+                              </td>
+                              <td style={{ padding: 14 }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxWidth: 280 }}>
+                                  {roomList.map(code => (
+                                    <span 
+                                      key={code} 
+                                      style={{ 
+                                        background: '#F1F5F9', 
+                                        color: '#0F172A', 
+                                        border: '1px solid #E2E8F0', 
+                                        padding: '2px 8px', 
+                                        borderRadius: 6, 
+                                        fontSize: '0.78rem', 
+                                        fontWeight: 800 
+                                      }}
+                                    >
+                                      {code}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td style={{ padding: 14 }}>
+                                <div style={{ fontSize: '0.85rem', color: '#475569', fontWeight: 600 }}>📐 {r.area} m²</div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>👥 Tối đa {r.maxOccupants} người</div>
+                              </td>
+                              <td style={{ padding: 14, fontWeight: 800, color: '#E8920A' }}>{(r.price).toLocaleString('vi-VN')} VND</td>
+                              <td style={{ padding: 14 }}>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#F8FAFC', padding: '4px 10px', borderRadius: 10, border: '1px solid #E2E8F0' }}>
+                                  <span style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 600 }}>Trống:</span>
+                                  <button 
+                                    type="button"
+                                    onClick={() => handleQuickUpdateRoomVacant(r, -1)}
+                                    style={{
+                                      width: 28, height: 28, borderRadius: 6, border: '1px solid #CBD5E1',
+                                      background: '#ffffff', color: '#0F172A', fontSize: '1rem', fontWeight: 800,
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                    }}
+                                    title="Giảm số phòng trống"
+                                  >
+                                    -
+                                  </button>
+                                  <span style={{ fontSize: '0.95rem', fontWeight: 900, color: '#0F172A', minWidth: 16, textAlign: 'center' }}>
+                                    {roomList.length}
+                                  </span>
+                                  <button 
+                                    type="button"
+                                    onClick={() => handleQuickUpdateRoomVacant(r, 1)}
+                                    style={{
+                                      width: 28, height: 28, borderRadius: 6, border: '1px solid #CBD5E1',
+                                      background: '#ffffff', color: '#0F172A', fontSize: '1rem', fontWeight: 800,
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                    }}
+                                    title="Tăng số phòng trống"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </td>
+                              <td style={{ padding: 14, textAlign: 'right' }}>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                                  <button style={{ background: 'none', border: 'none', color: '#0F172A', cursor: 'pointer' }} title="Sửa chi tiết loại phòng" onClick={() => handleOpenRoomModal(r)}>
+                                    <Edit size={18} />
+                                  </button>
+                                  <button style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer' }} title="Xóa loại phòng này" onClick={() => handleDeleteRoom(r.id, r.type)}>
+                                    <Trash2 size={18} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        });
                       })()}
                     </tbody>
                   </table>
@@ -1644,50 +1883,16 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
               {/* TAB 1: BASIC & MAP */}
               {buildingTab === 'basic' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Mã Tòa nhà *</label>
-                      <input type="text" placeholder="TN008" value={buildingForm.code} onChange={(e) => setBuildingForm({ ...buildingForm, code: e.target.value })} required style={{ width: '100%' }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Quận / Huyện *</label>
-                      <select value={buildingForm.district} onChange={(e) => setBuildingForm({ ...buildingForm, district: e.target.value })} style={{ width: '100%', fontWeight: 700 }}>
-                        <option value="Hà Đông">Hà Đông</option>
-                        <option value="Thanh Xuân">Thanh Xuân</option>
-                        <option value="Tây Hồ">Tây Hồ</option>
-                        <option value="Hoàng Mai">Hoàng Mai</option>
-                        <option value="Cầu Giấy">Cầu Giấy</option>
-                        <option value="Bắc Từ Liêm">Bắc Từ Liêm</option>
-                        <option value="Nam Từ Liêm">Nam Từ Liêm</option>
-                        <option value="Đống Đa">Đống Đa</option>
-                        <option value="Ba Đình">Ba Đình</option>
-                      </select>
-                    </div>
-                  </div>
-
                   <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Địa chỉ đầy đủ *</label>
-                    <input type="text" placeholder="35 Đông Ngạc, Phường Đông Ngạc,..." value={buildingForm.address} onChange={(e) => setBuildingForm({ ...buildingForm, address: e.target.value })} required style={{ width: '100%' }} />
+                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Mã Tòa nhà *</label>
+                    <input type="text" placeholder="TN008" value={buildingForm.code} onChange={(e) => setBuildingForm({ ...buildingForm, code: e.target.value })} required style={{ width: '100%' }} />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Kinh độ (Longitude) *</label>
-                      <input type="number" step="0.0001" value={buildingForm.longitude} onChange={(e) => setBuildingForm({ ...buildingForm, longitude: e.target.value })} required style={{ width: '100%' }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Vĩ độ (Latitude) *</label>
-                      <input type="number" step="0.0001" value={buildingForm.latitude} onChange={(e) => setBuildingForm({ ...buildingForm, latitude: e.target.value })} required style={{ width: '100%' }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Loại hình sở hữu *</label>
-                    <select value={buildingForm.ownerType} onChange={(e) => setBuildingForm({ ...buildingForm, ownerType: e.target.value })} style={{ width: '100%', fontWeight: 700 }}>
-                      <option value="tiny">Tòa nhà Tiny Houses chính chủ</option>
-                      <option value="partner">Tòa nhà Đối tác hợp tác</option>
-                    </select>
-                  </div>
+                  <BuildingLocationPicker
+                    buildingForm={buildingForm}
+                    setBuildingForm={setBuildingForm}
+                    showToast={showToast}
+                  />
                 </div>
               )}
 
@@ -1857,21 +2062,16 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
                       </select>
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Số phòng / Tên căn *</label>
-                      <input type="text" placeholder="Phòng 201" value={roomForm.roomNumber} onChange={(e) => setRoomForm({ ...roomForm, roomNumber: e.target.value })} required style={{ width: '100%' }} />
+                      <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Tên Loại phòng *</label>
+                      <input 
+                        type="text" 
+                        placeholder="VD: Studio - Ban công, Studio khép kín, Căn 1N1K..." 
+                        value={roomForm.type} 
+                        onChange={(e) => setRoomForm({ ...roomForm, type: e.target.value })} 
+                        required 
+                        style={{ width: '100%', fontWeight: 700 }} 
+                      />
                     </div>
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Loại hình căn hộ *</label>
-                    <select value={roomForm.type} onChange={(e) => setRoomForm({ ...roomForm, type: e.target.value })} style={{ width: '100%', fontWeight: 700 }}>
-                      <option value="Studio khép kín">Studio khép kín</option>
-                      <option value="Căn 1N1K">Căn 1N1K (1 Phòng ngủ 1 Khách)</option>
-                      <option value="Căn 2N1K">Căn 2N1K (2 Phòng ngủ 1 Khách)</option>
-                      <option value="Studio gác xép">Studio gác xép</option>
-                      <option value="Studio ban công">Studio ban công</option>
-                      <option value="Căn hộ nguyên tầng">Căn hộ nguyên tầng</option>
-                    </select>
                   </div>
 
                   <div>
@@ -1882,6 +2082,12 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
                       <option value="Đang bảo trì">Đang bảo trì / Sửa chữa</option>
                     </select>
                   </div>
+
+                  {/* DANH SÁCH PHÒNG CỤ THỂ (NHẬP MÃ PHÒNG P501, P502...) */}
+                  <SpecificRoomsSection 
+                    roomForm={roomForm}
+                    setRoomForm={setRoomForm}
+                  />
                 </div>
               )}
 
@@ -1912,24 +2118,12 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout }) {
                 </div>
               )}
 
-              {/* TAB 3: FURNITURE CHECKLIST */}
+              {/* TAB 3: DETAILS & AMENITIES CHECKLIST */}
               {roomTab === 'amenities' && (
-                <div>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 800, color: '#E8920A', display: 'block', marginBottom: 8 }}>
-                    Trang thiết bị Nội thất trong phòng (Furniture Checklist):
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, background: '#F8FAFC', padding: 12, borderRadius: 10, border: '1px solid #E2E8F0' }}>
-                    {furnitureOptions.map(f => {
-                      const checked = roomForm.amenitiesFurniture?.includes(f);
-                      return (
-                        <label key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', cursor: 'pointer', color: '#0F172A', fontWeight: 700 }}>
-                          <input type="checkbox" checked={checked} onChange={() => handleToggleFurniture(f)} style={{ accentColor: '#E8920A' }} />
-                          <span>{f}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
+                <RoomDetailsForm 
+                  roomForm={roomForm}
+                  setRoomForm={setRoomForm}
+                />
               )}
 
               {/* TAB 4: MULTI CLOUD IMAGES */}

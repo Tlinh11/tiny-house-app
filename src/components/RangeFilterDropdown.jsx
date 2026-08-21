@@ -44,7 +44,7 @@ export default function RangeFilterDropdown({
   };
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={containerRef} style={{ position: 'relative', display: 'inline-block', zIndex: isOpen ? 100 : 1 }}>
       {/* Trigger Button Matching Search Header Style */}
       <button
         type="button"

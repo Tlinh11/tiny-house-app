@@ -62,10 +62,10 @@ export default function Pagination({
               }}
               style={{ padding: '3px 8px', borderRadius: 6, borderColor: '#CBD5E1', fontSize: '0.8rem', fontWeight: 700 }}
             >
-              <option value={5}>5 / trang</option>
-              <option value={10}>10 / trang</option>
-              <option value={20}>20 / trang</option>
-              <option value={50}>50 / trang</option>
+              <option value={6}>6 / trang</option>
+              <option value={12}>12 / trang</option>
+              <option value={21}>21 / trang</option>
+              <option value={42}>42 / trang</option>
             </select>
           </div>
         )}

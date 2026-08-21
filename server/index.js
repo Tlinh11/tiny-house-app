@@ -82,6 +82,89 @@ const sendApprovalEmail = async ({ toEmail, toName, action, roleName }) => {
   return { sent: true };
 };
 
+const sendBookingNotificationEmail = async (booking) => {
+  const targetEmail = process.env.NOTIFICATION_EMAIL || 'mkt.tinyhouses@gmail.com';
+
+  if (!process.env.EMAIL_SMTP_USER || process.env.EMAIL_SMTP_PASS === 'your_gmail_app_password_here') {
+    console.log(`[Email Notification] (SMTP chưa cấu hình) Would send booking notification email for ${booking.customerName || booking.customer_name || 'Khách xem phòng'} to: ${targetEmail}`);
+    return { skipped: true };
+  }
+
+  const customerName = booking.customerName || booking.customer_name || booking.name || 'Khách hàng';
+  const phone = booking.phone || 'Chưa cung cấp';
+  const email = booking.email || 'Chưa cung cấp';
+  const buildingCode = booking.buildingCode || booking.building_code || 'N/A';
+  const roomNumber = booking.roomNumber || booking.room_number || 'N/A';
+  const appointmentDate = booking.appointmentDate || booking.appointment_date || 'N/A';
+  const appointmentTime = booking.appointmentTime || booking.appointment_time || '';
+  const bookingId = booking.id || `BK-${Date.now()}`;
+
+  const subject = `📅 [Tiny Houses] Lịch xem phòng mới: ${buildingCode} - Phòng ${roomNumber} (${customerName})`;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;">
+      <div style="background: linear-gradient(135deg, #E8920A, #d97706); padding: 24px; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 1.5rem;">🏠 Tiny Houses</h1>
+        <p style="color: rgba(255,255,255,0.95); margin: 6px 0 0 0; font-size: 1rem; font-weight: 500;">Thông báo: Có lịch xem phòng mới!</p>
+      </div>
+      <div style="padding: 28px; background: #ffffff;">
+        <h2 style="color: #0F172A; margin-top: 0; font-size: 1.2rem; border-bottom: 2px solid #E8920A; padding-bottom: 8px;">📋 Chi tiết người đặt lịch xem phòng</h2>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 10px 0; color: #64748B; font-weight: 600; width: 140px;">Mã lịch hẹn:</td>
+            <td style="padding: 10px 0; color: #0F172A; font-weight: bold;">${bookingId}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 10px 0; color: #64748B; font-weight: 600;">Họ và tên:</td>
+            <td style="padding: 10px 0; color: #0F172A; font-weight: bold; font-size: 1.05rem;">${customerName}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 10px 0; color: #64748B; font-weight: 600;">Số điện thoại:</td>
+            <td style="padding: 10px 0; color: #E8920A; font-weight: bold; font-size: 1.1rem;"><a href="tel:${phone}" style="color: #E8920A; text-decoration: none;">${phone}</a></td>
+          </tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 10px 0; color: #64748B; font-weight: 600;">Email khách:</td>
+            <td style="padding: 10px 0; color: #0F172A;">${email !== 'Chưa cung cấp' ? `<a href="mailto:${email}" style="color: #2563eb;">${email}</a>` : email}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 10px 0; color: #64748B; font-weight: 600;">Tòa nhà / Căn hộ:</td>
+            <td style="padding: 10px 0; color: #0F172A; font-weight: bold;">${buildingCode}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 10px 0; color: #64748B; font-weight: 600;">Số phòng xem:</td>
+            <td style="padding: 10px 0; color: #0F172A; font-weight: bold;">Phòng ${roomNumber}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 10px 0; color: #64748B; font-weight: 600;">Thời gian hẹn:</td>
+            <td style="padding: 10px 0; color: #16a34a; font-weight: bold;">${appointmentTime ? appointmentTime + ' — ' : ''}Ngày ${appointmentDate}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 0; color: #64748B; font-weight: 600;">Trạng thái:</td>
+            <td style="padding: 10px 0;"><span style="background: #FEF3C7; color: #92400E; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold;">Chờ xác nhận</span></td>
+          </tr>
+        </table>
+
+        <div style="margin-top: 24px; padding: 16px; background: #FFFBEB; border: 1px solid #FCD34D; border-radius: 8px; font-size: 0.88rem; color: #92400E;">
+          💡 <strong>Nhắc nhở MKT / CSKH:</strong> Vui lòng gọi điện hoặc liên hệ qua Zalo/Email cho khách hàng để xác nhận thời gian xem phòng.
+        </div>
+      </div>
+      <div style="background: #F1F5F9; padding: 14px; text-align: center; color: #94A3B8; font-size: 0.8rem;">
+        © 2026 Tiny Houses — Hệ thống gửi email tự động
+      </div>
+    </div>
+  `;
+
+  await emailTransporter.sendMail({
+    from: `"Tiny Houses System" <${process.env.EMAIL_SMTP_USER || 'no-reply@tinyhouse.vn'}>`,
+    to: targetEmail,
+    subject,
+    html
+  });
+  return { sent: true };
+};
+
+
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -456,12 +539,29 @@ app.get('/api/bookings', async (req, res) => {
 
 app.post('/api/bookings', async (req, res) => {
   try {
+    let newBooking;
     if (isSupabaseConfigured()) {
-      const sbRes = await SupabaseDb.createBooking(req.body);
-      if (sbRes) return res.json(sbRes);
+      newBooking = await SupabaseDb.createBooking(req.body);
     }
-    const newBooking = dataEngine.createBooking(req.body);
-    res.json(newBooking);
+    if (!newBooking) {
+      newBooking = dataEngine.createBooking(req.body);
+    }
+
+    const bookingData = newBooking || req.body;
+
+    // Gửi email thông báo đặt lịch tới mkt.tinyhouses@gmail.com
+    let emailResult = { skipped: true };
+    try {
+      emailResult = await sendBookingNotificationEmail(bookingData);
+      console.log(`[Email] Đã gửi thông báo lịch xem phòng tới MKT:`, emailResult);
+    } catch (emailErr) {
+      console.warn(`[Email] Lỗi gửi email thông báo đặt lịch xem phòng:`, emailErr.message);
+    }
+
+    res.json({
+      ...bookingData,
+      emailNotified: emailResult.sent || false
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -528,10 +628,10 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
-// IMAGE UPLOAD API
-app.post('/api/upload', (req, res) => {
+// IMAGE UPLOAD API (Uploads directly to new Supabase Storage bucket room-images)
+app.post('/api/upload', async (req, res) => {
   try {
-    const { image } = req.body;
+    const { image, fileName: origFileName } = req.body;
     if (!image) {
       return res.status(400).json({ error: 'Không tìm thấy dữ liệu hình ảnh' });
     }
@@ -548,15 +648,46 @@ app.post('/api/upload', (req, res) => {
     }
 
     const uniqueFileName = `img_${Date.now()}_${Math.floor(Math.random() * 1000)}.${ext}`;
+
+    // 1. Try uploading to new Supabase Storage bucket 'room-images'
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { error: uploadErr } = await supabase.storage
+          .from('room-images')
+          .upload(uniqueFileName, buffer, {
+            contentType: `image/${ext}`,
+            upsert: true
+          });
+
+        if (!uploadErr) {
+          const { data: publicUrlData } = supabase.storage.from('room-images').getPublicUrl(uniqueFileName);
+          if (publicUrlData && publicUrlData.publicUrl) {
+            console.log(`[Supabase Storage] ✅ Uploaded image: ${publicUrlData.publicUrl}`);
+            return res.json({
+              success: true,
+              url: publicUrlData.publicUrl,
+              fileName: uniqueFileName,
+              storage: 'supabase'
+            });
+          }
+        } else {
+          console.warn('[Supabase Storage] Upload warning:', uploadErr.message);
+        }
+      } catch (sbErr) {
+        console.warn('[Supabase Storage] Upload error:', sbErr.message);
+      }
+    }
+
+    // 2. Fallback to local uploads directory
     const filePath = path.join(uploadsDir, uniqueFileName);
-
     fs.writeFileSync(filePath, buffer);
-
     const publicUrl = `http://localhost:${PORT}/uploads/${uniqueFileName}`;
+
     res.json({
       success: true,
       url: publicUrl,
-      fileName: uniqueFileName
+      fileName: uniqueFileName,
+      storage: 'local'
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -1,5 +1,9 @@
-// Real Data Transformer from buildings_and_rooms copy.json
-import rawData from '../../buildings_and_rooms copy.json';
+// Real Data Transformer from export_all_data copy.json / buildings_and_rooms copy.json
+import rawExportedJson from '../../export_all_data copy.json';
+
+const rawData = Array.isArray(rawExportedJson) 
+  ? rawExportedJson 
+  : (rawExportedJson.buildings || []);
 
 // Coordinates mapping for buildings missing explicit lat/lng in raw JSON
 const LAT_LNG_COORDINATES = {
@@ -15,6 +19,7 @@ const LAT_LNG_COORDINATES = {
   'TN004': { latitude: 20.9715, longitude: 105.7680 }, // ngõ 12 Quang Trung, Hà Đông
   'TN003': { latitude: 21.0105, longitude: 105.8085 }, // 189 Nguyễn Ngọc Vũ, Cầu Giấy
   'DT005': { latitude: 21.0520, longitude: 105.8170 }, // 48 Võng Thị, Tây Hồ
+  'TH0008': { latitude: 21.0885, longitude: 105.7865 }, // 35 Đông Ngạc
 };
 
 const DISTRICT_CENTERS = {
@@ -41,7 +46,7 @@ const DEFAULT_IMAGES = [
 export const REAL_BUILDINGS = rawData.map((b, idx) => {
   const code = b.name || `BUILDING-${idx + 1}`;
   const isTiny = b.owner_type === 'tiny';
-  const district = b.district || 'Hà Đông';
+  const district = b.district || 'Bắc Từ Liêm';
 
   const lat = b.latitude || LAT_LNG_COORDINATES[code]?.latitude || DISTRICT_CENTERS[district]?.latitude || (21.0000 + (idx * 0.005));
   const lng = b.longitude || LAT_LNG_COORDINATES[code]?.longitude || DISTRICT_CENTERS[district]?.longitude || (105.8000 + (idx * 0.005));
@@ -52,9 +57,9 @@ export const REAL_BUILDINGS = rawData.map((b, idx) => {
   let allImages = [];
   let roomNumbersList = [];
   let hostInfo = {
-    name: "Đỗ Thảo Nguyên",
-    phone: "0167423824",
-    email: "minhxuyen88@gmail.com",
+    name: "Ms. Huyền",
+    phone: "0386570401",
+    email: "tinyhouse.info@gmail.com",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
   };
 
@@ -62,7 +67,8 @@ export const REAL_BUILDINGS = rawData.map((b, idx) => {
     if (rt.price && rt.price < minPrice) minPrice = rt.price;
     if (rt.price && rt.price > maxPrice) maxPrice = rt.price;
     
-    vacantRoomsCount += (rt.available_rooms || 0);
+    const count = rt.available_rooms || (rt.room_numbers ? rt.room_numbers.length : 1);
+    vacantRoomsCount += count;
     
     if (rt.images && Array.isArray(rt.images) && rt.images.length) {
       allImages.push(...rt.images);
@@ -98,6 +104,7 @@ export const REAL_BUILDINGS = rawData.map((b, idx) => {
     rating: 5.0,
     address: `${b.address}${b.ward ? ', ' + b.ward : ''}`,
     district: district,
+    ward: b.ward || '',
     city: b.province || 'Hà Nội',
     latitude: lat,
     longitude: lng,
@@ -107,7 +114,7 @@ export const REAL_BUILDINGS = rawData.map((b, idx) => {
     coverImage: coverImage,
     images: galleryImages,
     host: hostInfo,
-    rooms: roomNumbersList,
+    rooms: Array.from(new Set(roomNumbersList)),
     roomTypes: b.room_types || [],
     sortOrder: b.sort_order || 0
   };
@@ -116,42 +123,47 @@ export const REAL_BUILDINGS = rawData.map((b, idx) => {
 // DEFAULT SORT: Sort buildings by highest number of vacant rooms first!
 REAL_BUILDINGS.sort((a, b) => b.vacantRoomsCount - a.vacantRoomsCount);
 
-// Transform raw room_types JSON into granular room items for individual room views & CMS
+// Transform raw room_types JSON into unique Room Type items (Loại phòng)
 export const REAL_ROOMS = [];
 
 rawData.forEach(b => {
   const buildingCode = b.name;
-  (b.room_types || []).forEach(rt => {
-    const roomNumbers = (rt.room_numbers && rt.room_numbers.length > 0) ? rt.room_numbers : ['Phòng tiêu chuẩn'];
+  (b.room_types || []).forEach((rt, rtIdx) => {
+    const roomNumbers = (rt.room_numbers && rt.room_numbers.length > 0) ? rt.room_numbers : ['101', '102', '201', '202'];
     
-    roomNumbers.forEach(roomNum => {
-      REAL_ROOMS.push({
-        id: `${b.id}-${rt.id}-${roomNum}`,
-        roomTypeId: rt.id,
-        buildingId: b.id,
-        buildingCode: buildingCode,
-        buildingName: `Tòa nhà ${buildingCode}`,
-        roomNumber: roomNum,
-        status: (rt.available_rooms > 0) ? "Có sẵn" : "Đã thuê",
-        price: rt.price || 3500000,
-        type: rt.name || "Studio khép kín",
-        area: rt.area || 25,
-        maxOccupants: rt.max_occupants || 2,
-        availableFrom: "Ở ngay",
-        wifiFree: true,
-        kitchenClosed: true,
-        description: rt.description || "",
-        images: rt.images && rt.images.length ? rt.images : DEFAULT_IMAGES,
-        contactName: rt.contact_name || "",
-        contactPhone: rt.contact_phone || "",
-        contactEmail: rt.contact_email || "",
-        amenities: {
-          furniture: rt.amenities ? rt.amenities.filter(a => ['Điều hòa', 'Nóng lạnh', 'Giường', 'Tủ quần áo', 'Tủ bếp trên', 'Tủ bếp dưới', 'Tủ lạnh', 'Sofa'].includes(a)) : ["Điều hòa", "Nóng lạnh", "Giường", "Tủ quần áo"],
-          private: rt.amenities ? rt.amenities.filter(a => ['Wifi từng phòng', 'Khóa vân tay', 'Ban công'].includes(a)) : ["Wifi từng phòng", "Khóa vân tay"],
-          building: rt.amenities ? rt.amenities.filter(a => ['Máy giặt chung', 'Xe điện', 'Thang máy', 'Camera an ninh'].includes(a)) : ["Máy giặt chung", "Camera an ninh"],
-          safetyPccc: rt.amenities ? rt.amenities.filter(a => ['Sprinkler', 'Bình cứu hỏa', 'Thang thoát hiểm', 'Báo cháy', 'Chuông báo cháy', 'Báo khói', 'Cửa chống cháy', 'Mặt nạ phòng độc'].includes(a)) : ["Sprinkler", "Bình cứu hỏa", "Thang thoát hiểm", "Báo cháy"]
-        }
-      });
+    // Extract unique room type (1 entry per room_type)
+    REAL_ROOMS.push({
+      id: rt.id || `${b.id}-rt-${rtIdx}`,
+      roomTypeId: rt.id || `${b.id}-rt-${rtIdx}`,
+      buildingId: b.id,
+      buildingCode: buildingCode,
+      buildingName: `Tòa nhà ${buildingCode}`,
+      type: rt.name || "Studio khép kín",
+      roomNumber: roomNumbers[0] || '101',
+      specificRooms: roomNumbers,
+      vacantCount: rt.available_rooms || roomNumbers.length,
+      status: (rt.available_rooms > 0 || roomNumbers.length > 0) ? "Có sẵn" : "Đã thuê",
+      price: rt.price || 3500000,
+      area: rt.area || 25,
+      maxOccupants: rt.max_occupants || 2,
+      availableFrom: "Ở ngay",
+      wifiFree: true,
+      kitchenClosed: true,
+      description: rt.description || "",
+      images: rt.images && rt.images.length ? rt.images : DEFAULT_IMAGES,
+      contactName: rt.contact_name || "Ms. Huyền",
+      contactPhone: rt.contact_phone || "0386570401",
+      contactEmail: rt.contact_email || "",
+      host: {
+        name: rt.contact_name || "Ms. Huyền",
+        phone: rt.contact_phone || "0386570401",
+        email: rt.contact_email || "tinyhouse.info@gmail.com"
+      },
+      amenitiesNoiThat: rt.amenities ? rt.amenities.filter(a => ['Điều hòa', 'Nóng lạnh', 'Giường', 'Tủ quần áo', 'Tủ bếp trên', 'Tủ bếp dưới', 'Tủ lạnh', 'Sofa', 'Máy giặt', 'Rèm cửa'].includes(a)) : ["Điều hòa", "Nóng lạnh", "Giường", "Tủ quần áo", "Tủ lạnh"],
+      amenitiesRieng: rt.amenities ? rt.amenities.filter(a => ['Wifi từng phòng', 'Khóa vân tay', 'Ban công', 'App hệ sinh thái cư dân', 'Nuôi pet'].includes(a)) : ["Wifi từng phòng", "App hệ sinh thái cư dân"],
+      amenitiesChung: rt.amenities ? rt.amenities.filter(a => ['Máy giặt chung', 'Máy sấy chung', 'Xe điện', 'Thang máy', 'Camera an ninh', 'Wifi chung'].includes(a)) : ["Thang máy", "Máy giặt chung"],
+      amenitiesAnNinh: rt.amenities ? rt.amenities.filter(a => ['Khóa vân tay', 'Camera an ninh'].includes(a)) : ["Camera an ninh", "Khóa vân tay"],
+      amenitiesPccc: rt.amenities ? rt.amenities.filter(a => ['Sprinkler', 'Bình cứu hỏa', 'Thang thoát hiểm', 'Báo cháy', 'Chuông báo cháy', 'Báo khói', 'Cửa chống cháy', 'Mặt nạ phòng độc'].includes(a)) : ["Sprinkler", "Bình cứu hỏa", "Thang thoát hiểm", "Báo cháy"]
     });
   });
 });
