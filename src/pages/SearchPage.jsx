@@ -5,6 +5,7 @@ import MapView from '../components/MapView';
 import Pagination from '../components/Pagination';
 import RangeFilterDropdown from '../components/RangeFilterDropdown';
 import DualRangeSlider from '../components/DualRangeSlider';
+import { getValidImageUrl } from '../utils/roomHierarchy';
 
 export default function SearchPage({ setActiveTab, setSelectedBuildingId, searchFilters }) {
   const [filterType, setFilterType] = useState('all');
@@ -277,7 +278,7 @@ export default function SearchPage({ setActiveTab, setSelectedBuildingId, search
                       style={{ cursor: 'pointer', display: 'grid', gridTemplateColumns: '180px 1fr', gap: 16 }}
                     >
                       <div style={{ position: 'relative', height: 160 }}>
-                        <img src={building.coverImage} alt={building.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={getValidImageUrl(building.coverImage)} alt={building.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         <span className="badge badge-tiny" style={{ position: 'absolute', top: 8, left: 8 }}>
                           {building.isTiny ? 'Tiny' : 'Đối tác'}
                         </span>
@@ -402,7 +403,7 @@ export default function SearchPage({ setActiveTab, setSelectedBuildingId, search
                   <div key={building.id} className="card" onClick={() => handleSelectBuilding(building.id)} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden' }}>
                     <div>
                       <div style={{ position: 'relative', height: 175 }}>
-                        <img src={building.coverImage} alt={building.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={getValidImageUrl(building.coverImage)} alt={building.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
 
                         <span className="badge badge-success" style={{ position: 'absolute', top: 10, left: 10, fontSize: '0.75rem' }}>
                           {building.vacantRoomsCount} phòng trống

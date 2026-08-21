@@ -4,7 +4,7 @@ import { DataService } from '../services/dataService';
 import MapView from '../components/MapView';
 import ImageLightboxModal from '../components/ImageLightboxModal';
 
-import { groupRoomsIntoTypes } from '../utils/roomHierarchy';
+import { groupRoomsIntoTypes, getValidImageUrl } from '../utils/roomHierarchy';
 
 export default function BuildingDetailPage({ buildingId, setActiveTab, setSelectedRoomId }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -141,7 +141,7 @@ export default function BuildingDetailPage({ buildingId, setActiveTab, setSelect
               {roomTypes.map((rt) => (
                 <div key={rt.id} className="card" style={{ padding: 20, display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 20, alignItems: 'center' }}>
                   <img 
-                    src={rt.images?.[0] || galleryImages[1]} 
+                    src={getValidImageUrl(rt.images?.[0] || rt.coverImage, galleryImages[1] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80')} 
                     alt={rt.type} 
                     style={{ width: '100%', height: 120, borderRadius: 12, objectFit: 'cover' }} 
                   />

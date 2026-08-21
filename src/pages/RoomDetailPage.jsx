@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { DataService } from '../services/dataService';
 import ImageLightboxModal from '../components/ImageLightboxModal';
-import { groupRoomsIntoTypes, getRoomTypeNumbers } from '../utils/roomHierarchy';
+import { groupRoomsIntoTypes, getRoomTypeNumbers, getValidImageUrl } from '../utils/roomHierarchy';
 
 // Custom Amenity Item with rounded bordered box matching user screenshot
 function AmenityItem({ name }) {
@@ -118,15 +118,17 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
   const [appointmentTime, setAppointmentTime] = useState('10:00 AM');
 
   // Images Gallery (Left 1 big + Right 4 small)
-  const galleryImages = Array.from(new Set([
+  const rawGallery = [
     ...(activeRoomType.images || []),
+    activeRoomType.coverImage,
     ...(building.images || []),
     building.coverImage,
     'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
     'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80',
     'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80',
     'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=800&q=80'
-  ])).filter(Boolean);
+  ];
+  const galleryImages = Array.from(new Set(rawGallery.map(img => getValidImageUrl(img)).filter(Boolean)));
 
   // Host Info (Room or Building)
   const hostName = activeRoomType.host?.name || building.host?.name || 'Ms. Huyền';

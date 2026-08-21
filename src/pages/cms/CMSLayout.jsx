@@ -11,7 +11,7 @@ import MultiImageUploader from '../../components/MultiImageUploader';
 import BuildingLocationPicker from '../../components/BuildingLocationPicker';
 import RoomDetailsForm from '../../components/RoomDetailsForm';
 import SpecificRoomsSection from '../../components/SpecificRoomsSection';
-import { getRoomTypeNumbers, getRoomTypeVacantCount, getBuildingVacantCount } from '../../utils/roomHierarchy';
+import { getRoomTypeNumbers, getRoomTypeVacantCount, getBuildingVacantCount, getValidImageUrl } from '../../utils/roomHierarchy';
 
 export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenAuthModal }) {
   // If not logged in, show access restriction screen
@@ -1324,7 +1324,7 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
                           return (
                             <tr key={r.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
                               <td style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <img src={r.images && r.images.length ? r.images[0] : 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80'} alt={r.type} style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover' }} />
+                                <img src={getValidImageUrl(r.images?.[0] || r.coverImage)} alt={r.type} style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover' }} />
                                 <div>
                                   <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A' }}>{r.type}</span>
                                   <div style={{ fontSize: '0.75rem', color: '#64748B' }}>Mã: {r.id?.slice(0, 10)}</div>

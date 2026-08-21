@@ -2,15 +2,17 @@
 import { INITIAL_BUILDINGS, INITIAL_ROOMS, INITIAL_BOOKINGS, INITIAL_CTVS, INITIAL_BLOGS } from '../data/mockData';
 import { ApiClient } from './apiClient';
 
+import { groupRoomsIntoTypes, getValidImageUrl, formatRoomTypeName } from '../utils/roomHierarchy';
+
 const STORAGE_KEYS = {
-  BUILDINGS: 'tinyhouse_buildings_v8',
-  ROOMS: 'tinyhouse_rooms_v8',
-  BOOKINGS: 'tinyhouse_bookings_v8',
-  CTVS: 'tinyhouse_ctvs_v8',
-  BLOGS: 'tinyhouse_blogs_v8',
-  ROLES: 'tinyhouse_roles_v8',
-  USERS: 'tinyhouse_users_v8',
-  CURRENT_USER: 'tinyhouse_current_user_v8',
+  BUILDINGS: 'tinyhouse_buildings_v7',
+  ROOMS: 'tinyhouse_rooms_v7',
+  BOOKINGS: 'tinyhouse_bookings_v7',
+  CTVS: 'tinyhouse_ctvs_v7',
+  BLOGS: 'tinyhouse_blogs_v7',
+  ROLES: 'tinyhouse_roles_v7',
+  USERS: 'tinyhouse_users_v7',
+  CURRENT_USER: 'tinyhouse_current_user_v7',
 };
 
 // Initial Roles Definition
@@ -237,17 +239,21 @@ export const DataService = {
   // Rooms
   getRooms: () => {
     const raw = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
-    return enrichRoomsList(raw);
+    return groupRoomsIntoTypes(enrichRoomsList(raw));
   },
 
   getRoomsByBuilding: (buildingIdOrCode) => {
-    const rooms = DataService.getRooms();
-    if (!buildingIdOrCode) return rooms;
-    return rooms.filter(r => 
-      r.buildingId === buildingIdOrCode || 
-      r.buildingCode === buildingIdOrCode ||
-      (typeof buildingIdOrCode === 'object' && (r.buildingCode === buildingIdOrCode.code || r.buildingId === buildingIdOrCode.id))
+    const raw = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
+    const enriched = enrichRoomsList(raw);
+    if (!buildingIdOrCode) return groupRoomsIntoTypes(enriched);
+
+    const bId = typeof buildingIdOrCode === 'object' ? (buildingIdOrCode.id || buildingIdOrCode.code) : buildingIdOrCode;
+    const filtered = enriched.filter(r => 
+      r.buildingId === bId || 
+      r.buildingCode === bId ||
+      r.buildingName?.includes(bId)
     );
+    return groupRoomsIntoTypes(filtered);
   },
 
   getRoomById: (roomId) => {

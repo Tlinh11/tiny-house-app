@@ -3,6 +3,7 @@ import { Search, ShieldCheck, Eye, MapPin, ChevronRight, Star, Map } from 'lucid
 import { DataService } from '../services/dataService';
 import MapView from '../components/MapView';
 import RangeFilterDropdown from '../components/RangeFilterDropdown';
+import { getValidImageUrl } from '../utils/roomHierarchy';
 
 export default function HomePage({ setActiveTab, setSelectedBuildingId, onSearch }) {
   const [searchDistrict, setSearchDistrict] = useState('Hà Đông');
@@ -257,7 +258,7 @@ export default function HomePage({ setActiveTab, setSelectedBuildingId, onSearch
           {tinyBuildings.map((building) => (
             <div key={building.id} className="card" onClick={() => handleSelectBuilding(building.id)} style={{ cursor: 'pointer' }}>
               <div style={{ position: 'relative', height: 200 }}>
-                <img src={building.coverImage} alt={building.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={getValidImageUrl(building.coverImage)} alt={building.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 <span className="badge badge-primary" style={{ position: 'absolute', top: 12, left: 12 }}>
                   Tòa nhà Tiny
                 </span>
