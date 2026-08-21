@@ -12,7 +12,14 @@ function loadRawBuildings() {
   try {
     const rawText = fs.readFileSync(DATA_FILE_PATH, 'utf-8');
     const parsed = JSON.parse(rawText);
-    return Array.isArray(parsed) ? parsed : (parsed.buildings || []);
+    const list = Array.isArray(parsed) ? parsed : (parsed.buildings || []);
+    const seen = new Set();
+    return list.filter(b => {
+      const key = b.id || b.name;
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   } catch (err) {
     console.error("Error reading raw export_all_data copy.json:", err);
     return [];

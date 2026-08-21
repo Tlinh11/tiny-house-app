@@ -5,14 +5,14 @@ import { ApiClient } from './apiClient';
 import { groupRoomsIntoTypes, getValidImageUrl, formatRoomTypeName } from '../utils/roomHierarchy';
 
 const STORAGE_KEYS = {
-  BUILDINGS: 'tinyhouse_buildings_v7',
-  ROOMS: 'tinyhouse_rooms_v7',
-  BOOKINGS: 'tinyhouse_bookings_v7',
-  CTVS: 'tinyhouse_ctvs_v7',
-  BLOGS: 'tinyhouse_blogs_v7',
-  ROLES: 'tinyhouse_roles_v7',
-  USERS: 'tinyhouse_users_v7',
-  CURRENT_USER: 'tinyhouse_current_user_v7',
+  BUILDINGS: 'tinyhouse_buildings_v8',
+  ROOMS: 'tinyhouse_rooms_v8',
+  BOOKINGS: 'tinyhouse_bookings_v8',
+  CTVS: 'tinyhouse_ctvs_v8',
+  BLOGS: 'tinyhouse_blogs_v8',
+  ROLES: 'tinyhouse_roles_v8',
+  USERS: 'tinyhouse_users_v8',
+  CURRENT_USER: 'tinyhouse_current_user_v8',
 };
 
 // Initial Roles Definition

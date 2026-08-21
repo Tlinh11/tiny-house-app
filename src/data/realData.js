@@ -1,9 +1,18 @@
 // Real Data Transformer from export_all_data copy.json / buildings_and_rooms copy.json
 import rawExportedJson from '../../export_all_data copy.json';
 
-const rawData = Array.isArray(rawExportedJson) 
+const rawList = Array.isArray(rawExportedJson) 
   ? rawExportedJson 
   : (rawExportedJson.buildings || []);
+
+// Deduplicate raw buildings by id / name (prevents duplicate buildings from dump file)
+const seenBuildingIds = new Set();
+const rawData = rawList.filter(b => {
+  const key = b.id || b.name;
+  if (!key || seenBuildingIds.has(key)) return false;
+  seenBuildingIds.add(key);
+  return true;
+});
 
 // Coordinates mapping for buildings missing explicit lat/lng in raw JSON
 const LAT_LNG_COORDINATES = {
@@ -125,20 +134,24 @@ REAL_BUILDINGS.sort((a, b) => b.vacantRoomsCount - a.vacantRoomsCount);
 
 // Transform raw room_types JSON into unique Room Type items (Loại phòng)
 export const REAL_ROOMS = [];
+const seenRoomTypeIds = new Set();
 
 rawData.forEach(b => {
   const buildingCode = b.name;
   (b.room_types || []).forEach((rt, rtIdx) => {
+    const rtId = rt.id || `${b.id}-rt-${rtIdx}`;
+    if (seenRoomTypeIds.has(rtId)) return;
+    seenRoomTypeIds.add(rtId);
+
     const roomNumbers = (rt.room_numbers && rt.room_numbers.length > 0) ? rt.room_numbers : ['101', '102', '201', '202'];
     
-    // Extract unique room type (1 entry per room_type)
     REAL_ROOMS.push({
-      id: rt.id || `${b.id}-rt-${rtIdx}`,
-      roomTypeId: rt.id || `${b.id}-rt-${rtIdx}`,
+      id: rtId,
+      roomTypeId: rtId,
       buildingId: b.id,
       buildingCode: buildingCode,
       buildingName: `Tòa nhà ${buildingCode}`,
-      type: rt.name || "Studio khép kín",
+      type: rt.name?.trim() || "Studio khép kín",
       roomNumber: roomNumbers[0] || '101',
       specificRooms: roomNumbers,
       vacantCount: rt.available_rooms || roomNumbers.length,
