@@ -107,6 +107,41 @@ const getStoredItem = (key, initialValue) => {
   }
 };
 
+function enrichRoomsList(roomsList = []) {
+  if (!Array.isArray(roomsList) || roomsList.length === 0) return INITIAL_ROOMS;
+
+  return roomsList.map(r => {
+    // Match against INITIAL_ROOMS to ensure all room_numbers from export_all_data copy.json are preserved
+    const initMatch = INITIAL_ROOMS.find(ir => 
+      ir.id === r.id || 
+      (ir.buildingCode === r.buildingCode && (ir.type === r.type || ir.name === r.type))
+    );
+
+    let specificRooms = r.specificRooms;
+    if (!specificRooms || !Array.isArray(specificRooms) || specificRooms.length <= 1) {
+      if (initMatch?.specificRooms && initMatch.specificRooms.length > 0) {
+        specificRooms = initMatch.specificRooms;
+      } else if (r.room_numbers && Array.isArray(r.room_numbers) && r.room_numbers.length > 0) {
+        specificRooms = r.room_numbers;
+      } else {
+        specificRooms = r.roomNumber ? [r.roomNumber] : ['501'];
+      }
+    }
+
+    const cleanRooms = Array.from(new Set(specificRooms.filter(Boolean)));
+
+    return {
+      ...r,
+      specificRooms: cleanRooms,
+      room_numbers: cleanRooms,
+      available_rooms: cleanRooms.length,
+      vacantCount: cleanRooms.length,
+      status: cleanRooms.length > 0 ? (r.status || 'Có sẵn') : 'Hết phòng',
+      roomNumber: cleanRooms[0] || r.roomNumber || '501'
+    };
+  });
+}
+
 const setStoredItem = (key, value) => {
   try {
     localStorage.setItem(key, JSON.stringify(value));
@@ -137,7 +172,7 @@ export const DataService = {
         setStoredItem(STORAGE_KEYS.BUILDINGS, buildings);
       }
       if (rooms && Array.isArray(rooms) && rooms.length > 0) {
-        setStoredItem(STORAGE_KEYS.ROOMS, rooms);
+        setStoredItem(STORAGE_KEYS.ROOMS, enrichRoomsList(rooms));
       }
       if (bookings && Array.isArray(bookings)) {
         setStoredItem(STORAGE_KEYS.BOOKINGS, bookings);
@@ -201,7 +236,8 @@ export const DataService = {
 
   // Rooms
   getRooms: () => {
-    return getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
+    const raw = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
+    return enrichRoomsList(raw);
   },
 
   getRoomsByBuilding: (buildingIdOrCode) => {

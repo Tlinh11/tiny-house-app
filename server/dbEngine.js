@@ -4,16 +4,17 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DATA_FILE_PATH = path.join(__dirname, '..', 'buildings_and_rooms.json');
+const DATA_FILE_PATH = path.join(__dirname, '..', 'export_all_data copy.json');
 const STORE_FILE_PATH = path.join(__dirname, 'dataStore.json');
 
-// Initial setup from buildings_and_rooms.json
+// Initial setup from export_all_data copy.json
 function loadRawBuildings() {
   try {
     const rawText = fs.readFileSync(DATA_FILE_PATH, 'utf-8');
-    return JSON.parse(rawText);
+    const parsed = JSON.parse(rawText);
+    return Array.isArray(parsed) ? parsed : (parsed.buildings || []);
   } catch (err) {
-    console.error("Error reading raw buildings_and_rooms.json:", err);
+    console.error("Error reading raw export_all_data copy.json:", err);
     return [];
   }
 }
@@ -23,6 +24,7 @@ const LAT_LNG = {
   'DT006': { latitude: 21.0655, longitude: 105.8078 },
   'DT007': { latitude: 20.9575, longitude: 105.7952 },
   'TN008': { latitude: 21.0885, longitude: 105.7865 },
+  'TH0008': { latitude: 21.0885, longitude: 105.7865 },
   'TN0016': { latitude: 21.0580, longitude: 105.8360 },
   'DT008': { latitude: 20.9820, longitude: 105.8150 },
   'DT004': { latitude: 21.0285, longitude: 105.7725 },
@@ -54,7 +56,8 @@ function transformInitialData() {
     (b.room_types || []).forEach(rt => {
       if (rt.price && rt.price < minPrice) minPrice = rt.price;
       if (rt.price && rt.price > maxPrice) maxPrice = rt.price;
-      vacantRoomsCount += (rt.available_rooms || 0);
+      const count = rt.available_rooms || (rt.room_numbers ? rt.room_numbers.length : 1);
+      vacantRoomsCount += count;
       if (rt.images && rt.images.length) images.push(...rt.images);
       if (rt.room_numbers && rt.room_numbers.length) roomNumbers.push(...rt.room_numbers);
     });
@@ -67,10 +70,10 @@ function transformInitialData() {
       code: code,
       name: `Tòa nhà ${code} - ${b.address}`,
       isTiny: b.owner_type === 'tiny',
-      ownerType: b.owner_type,
+      ownerType: b.owner_type || 'tiny',
       rating: 5.0,
       address: `${b.address}${b.ward ? ', ' + b.ward : ''}`,
-      district: b.district || 'Hà Đông',
+      district: b.district || 'Bắc Từ Liêm',
       city: b.province || 'Hà Nội',
       latitude: b.latitude || LAT_LNG[code]?.latitude || (21.0000 + idx * 0.005),
       longitude: b.longitude || LAT_LNG[code]?.longitude || (105.8000 + idx * 0.005),
@@ -79,7 +82,7 @@ function transformInitialData() {
       maxPrice: maxPrice,
       coverImage: images[0] || DEFAULT_IMAGES[idx % DEFAULT_IMAGES.length],
       images: images.length ? images : DEFAULT_IMAGES,
-      rooms: roomNumbers.length ? roomNumbers : ['101', '102', '201']
+      rooms: Array.from(new Set(roomNumbers))
     };
   });
 
@@ -88,23 +91,31 @@ function transformInitialData() {
 
   const rooms = [];
   raw.forEach(b => {
-    (b.room_types || []).forEach(rt => {
-      const roomNums = (rt.room_numbers && rt.room_numbers.length) ? rt.room_numbers : ['Phòng tiêu chuẩn'];
-      roomNums.forEach(rNum => {
-        rooms.push({
-          id: `${b.id}-${rt.id}-${rNum}`,
-          roomTypeId: rt.id,
-          buildingId: b.id,
-          buildingCode: b.name,
-          buildingName: `Tòa nhà ${b.name}`,
-          roomNumber: rNum,
-          status: rt.available_rooms > 0 ? "Có sẵn" : "Đã thuê",
-          price: rt.price || 3500000,
-          type: rt.name || "Studio khép kín",
-          area: rt.area || 25,
-          maxOccupants: rt.max_occupants || 2,
-          images: rt.images && rt.images.length ? rt.images : DEFAULT_IMAGES
-        });
+    (b.room_types || []).forEach((rt, rtIdx) => {
+      const roomNums = (rt.room_numbers && rt.room_numbers.length > 0) ? rt.room_numbers : ['101', '102'];
+      rooms.push({
+        id: rt.id || `${b.id}-rt-${rtIdx}`,
+        roomTypeId: rt.id || `${b.id}-rt-${rtIdx}`,
+        buildingId: b.id,
+        buildingCode: b.name,
+        buildingName: `Tòa nhà ${b.name}`,
+        roomNumber: roomNums[0] || '101',
+        specificRooms: roomNums,
+        room_numbers: roomNums,
+        available_rooms: rt.available_rooms || roomNums.length,
+        vacantCount: rt.available_rooms || roomNums.length,
+        status: (rt.available_rooms > 0 || roomNums.length > 0) ? "Có sẵn" : "Đã thuê",
+        price: rt.price || 3500000,
+        type: rt.name || "Studio khép kín",
+        area: rt.area || 25,
+        maxOccupants: rt.max_occupants || 2,
+        images: rt.images && rt.images.length ? rt.images : DEFAULT_IMAGES,
+        description: rt.description || "",
+        host: {
+          name: rt.contact_name || "Ms. Huyền",
+          phone: rt.contact_phone || "0386570401",
+          email: rt.contact_email || "tinyhouse.info@gmail.com"
+        }
       });
     });
   });

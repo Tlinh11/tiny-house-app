@@ -11,6 +11,7 @@ import MultiImageUploader from '../../components/MultiImageUploader';
 import BuildingLocationPicker from '../../components/BuildingLocationPicker';
 import RoomDetailsForm from '../../components/RoomDetailsForm';
 import SpecificRoomsSection from '../../components/SpecificRoomsSection';
+import { getRoomTypeNumbers, getRoomTypeVacantCount, getBuildingVacantCount } from '../../utils/roomHierarchy';
 
 export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenAuthModal }) {
   // If not logged in, show access restriction screen
@@ -474,9 +475,7 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
     setRoomTab('basic');
     if (rm) {
       setEditingRoom(rm);
-      const existingRooms = rm.specificRooms && rm.specificRooms.length > 0
-        ? rm.specificRooms
-        : (rm.roomNumber ? [rm.roomNumber] : ['501', '502', '503', '504']);
+      const existingRooms = getRoomTypeNumbers(rm);
 
       setRoomForm({
         buildingCode: rm.buildingCode,
@@ -1320,9 +1319,7 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
                         }
 
                         return filteredRoomsInBld.map((r) => {
-                          const roomList = r.specificRooms && r.specificRooms.length > 0 
-                            ? r.specificRooms 
-                            : (r.roomNumber ? [r.roomNumber] : ['501']);
+                          const roomList = getRoomTypeNumbers(r);
 
                           return (
                             <tr key={r.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
