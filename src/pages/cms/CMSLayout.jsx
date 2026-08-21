@@ -1141,7 +1141,10 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
                     );
                   }).map(b => {
                     const bRooms = rooms.filter(r => r.buildingCode === b.code || r.buildingId === b.id);
-                    const vacantRooms = bRooms.filter(r => r.status === 'Có sẵn').length;
+                    const totalVacantRooms = bRooms.reduce((acc, r) => {
+                      return acc + (r.specificRooms && r.specificRooms.length ? r.specificRooms.length : (r.status === 'Có sẵn' ? 1 : 0));
+                    }, 0);
+                    const displayVacant = totalVacantRooms > 0 ? totalVacantRooms : (b.vacantRoomsCount || 0);
                     return (
                       <div 
                         key={b.id} 
@@ -1181,11 +1184,9 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 14, borderTop: '1px solid #F1F5F9' }}>
                           <div>
-                            <span style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 600 }}>Tổng phòng: </span>
-                            <strong style={{ fontSize: '1rem', color: '#0F172A', fontWeight: 900 }}>{bRooms.length} căn</strong>
-                            {vacantRooms > 0 && (
-                              <div style={{ fontSize: '0.82rem', color: '#10B981', fontWeight: 800, marginTop: 2 }}>({vacantRooms} phòng trống)</div>
-                            )}
+                            <span style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 600 }}>Loại phòng: </span>
+                            <strong style={{ fontSize: '0.95rem', color: '#0F172A', fontWeight: 900 }}>{bRooms.length} loại</strong>
+                            <div style={{ fontSize: '0.82rem', color: '#10B981', fontWeight: 800, marginTop: 2 }}>({displayVacant} phòng trống)</div>
                           </div>
                           <button className="btn btn-primary" style={{ fontSize: '0.85rem', padding: '8px 14px', borderRadius: 10, fontWeight: 800 }}>
                             👉 Chọn Tòa
@@ -1203,7 +1204,11 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
                 {(() => {
                   const selBld = buildings.find(b => b.code === selectedBuildingForRooms || b.id === selectedBuildingForRooms);
                   const bldRooms = rooms.filter(r => r.buildingCode === selectedBuildingForRooms || r.buildingId === selectedBuildingForRooms);
-                  const availableCount = bldRooms.filter(r => r.status === 'Có sẵn').length;
+                  const totalVacantCount = bldRooms.reduce((acc, r) => {
+                    return acc + (r.specificRooms && r.specificRooms.length ? r.specificRooms.length : (r.status === 'Có sẵn' ? 1 : 0));
+                  }, 0);
+                  const displayVacantCount = totalVacantCount > 0 ? totalVacantCount : (selBld?.vacantRoomsCount || 0);
+
                   return (
                     <div className="card" style={{ padding: 20, marginBottom: 20, background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', color: '#ffffff', borderRadius: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                       <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
@@ -1211,8 +1216,8 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
                         <div>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                             <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#F59E0B' }}>🏢 Tòa nhà {selectedBuildingForRooms}</span>
-                            <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>{availableCount} phòng trống</span>
-                            <span className="badge badge-warning" style={{ fontSize: '0.75rem' }}>Tổng {bldRooms.length} phòng</span>
+                            <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>{displayVacantCount} phòng trống</span>
+                            <span className="badge badge-warning" style={{ fontSize: '0.75rem' }}>{bldRooms.length} loại phòng</span>
                           </div>
                           <div style={{ fontSize: '0.85rem', color: '#94A3B8', marginTop: 4 }}>📍 {selBld?.address}</div>
                         </div>
