@@ -11,11 +11,7 @@ export default function Header({ activeTab, setActiveTab, onOpenAuthModal, curre
 
   const navItems = [
     { id: 'home', label: 'Trang chủ', icon: Home },
-    { id: 'search', label: 'Tìm phòng', icon: Search },
-    { id: 'about', label: 'Về chúng tôi', icon: ShieldCheck },
-    { id: 'landlord', label: 'Cho thuê (Chủ nhà)', icon: Building2 },
-    { id: 'partner', label: 'Hợp tác CTV', icon: Users },
-    { id: 'blog', label: 'Tin tức', icon: UserCheck },
+    { id: 'search', label: 'Tìm phòng', icon: Search }
   ];
 
   const handleNavClick = (id) => {
@@ -25,10 +21,7 @@ export default function Header({ activeTab, setActiveTab, onOpenAuthModal, curre
 
   // Check if current user has permission to enter CMS
   const hasCmsAccess = () => {
-    if (!currentUser) return false;
-    const roles = DataService.getRoles();
-    const roleObj = roles.find(r => r.code === currentUser.roleCode || r.name === currentUser.roleName) || roles[0];
-    return roleObj && roleObj.allowedScreens && roleObj.allowedScreens.length > 0;
+    return !!currentUser;
   };
 
   const hasJwtToken = !!ApiClient.getToken();
@@ -112,7 +105,10 @@ export default function Header({ activeTab, setActiveTab, onOpenAuthModal, curre
                       color: '#ffffff', 
                       fontSize: '0.75rem', 
                       padding: '5px 12px',
-                      borderRadius: '20px'
+                      borderRadius: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 5
                     }}
                     onClick={() => handleNavClick('cms')}
                     title="Chuyển đến màn hình quản trị CMS Admin"

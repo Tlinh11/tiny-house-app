@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   MapPin, ArrowLeft, Phone, ShieldCheck, CheckCircle2, Eye, Sparkles, X, PlayCircle,
   Wind, Droplets, WashingMachine, Refrigerator, BedDouble, Shirt, Blinds, ChefHat, 
@@ -8,6 +8,59 @@ import {
 import { DataService } from '../services/dataService';
 import ImageLightboxModal from '../components/ImageLightboxModal';
 import { getRoomTypeNumbers, getValidImageUrl } from '../utils/roomHierarchy';
+
+const ALL_TIME_SLOTS = [
+  { value: '07:00 AM', label: '07:00 AM' },
+  { value: '07:30 AM', label: '07:30 AM' },
+  { value: '08:00 AM', label: '08:00 AM' },
+  { value: '08:30 AM', label: '08:30 AM' },
+  { value: '09:00 AM', label: '09:00 AM' },
+  { value: '09:30 AM', label: '09:30 AM' },
+  { value: '10:00 AM', label: '10:00 AM' },
+  { value: '10:30 AM', label: '10:30 AM' },
+  { value: '11:00 AM', label: '11:00 AM' },
+  { value: '11:30 AM', label: '11:30 AM' },
+  { value: '12:00 PM', label: '12:00 PM' },
+  { value: '12:30 PM', label: '12:30 PM' },
+  { value: '01:00 PM', label: '01:00 PM' },
+  { value: '01:30 PM', label: '01:30 PM' },
+  { value: '02:00 PM', label: '02:00 PM' },
+  { value: '02:30 PM', label: '02:30 PM' },
+  { value: '03:00 PM', label: '03:00 PM' },
+  { value: '03:30 PM', label: '03:30 PM' },
+  { value: '04:00 PM', label: '04:00 PM' },
+  { value: '04:30 PM', label: '04:30 PM' },
+  { value: '05:00 PM', label: '05:00 PM' },
+  { value: '05:30 PM', label: '05:30 PM' },
+  { value: '06:00 PM', label: '06:00 PM' },
+  { value: '06:30 PM', label: '06:30 PM' },
+  { value: '07:00 PM', label: '07:00 PM' },
+  { value: '07:30 PM', label: '07:30 PM' },
+  { value: '08:00 PM', label: '08:00 PM' },
+  { value: '08:30 PM', label: '08:30 PM' },
+  { value: '09:00 PM', label: '09:00 PM' },
+  { value: '09:30 PM', label: '09:30 PM' },
+  { value: '10:00 PM', label: '10:00 PM' }
+];
+
+const getTodayDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseTimeToMinutes = (timeStr) => {
+  if (!timeStr) return 0;
+  const isPM = timeStr.toUpperCase().includes('PM');
+  const isAM = timeStr.toUpperCase().includes('AM');
+  const clean = timeStr.replace(/AM|PM/gi, '').trim();
+  let [h, m] = clean.split(':').map(Number);
+  if (isPM && h < 12) h += 12;
+  if (isAM && h === 12) h = 0;
+  return h * 60 + (m || 0);
+};
 
 // Custom Amenity Item with rounded bordered box matching user screenshot
 function AmenityItem({ name }) {
@@ -62,7 +115,7 @@ function AmenityItem({ name }) {
   );
 }
 
-export default function RoomDetailPage({ roomId, _setActiveTab }) {
+export default function RoomDetailPage({ roomId, setActiveTab }) {
   const [room, setRoom] = useState(() => DataService.getRoomById(roomId) || DataService.getRooms()[0]);
   const [building, setBuilding] = useState(() => DataService.getBuildingById(room?.buildingId || room?.buildingCode) || DataService.getBuildings()[0]);
   const [buildingRooms, setBuildingRooms] = useState(() => DataService.getRoomsByBuilding(building?.id));
@@ -114,8 +167,57 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [appointmentDate, setAppointmentDate] = useState('');
-  const [appointmentTime, setAppointmentTime] = useState('10:00 AM');
+  
+  const todayDateStr = getTodayDateString();
+
+  const [appointmentDate, setAppointmentDate] = useState(() => {
+    const now = new Date();
+    // If it's already late in the evening after 21:30, default to tomorrow
+    if ((now.getHours() === 21 && now.getMinutes() > 30) || now.getHours() >= 22) {
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const y = tomorrow.getFullYear();
+      const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
+      const d = String(tomorrow.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return todayDateStr;
+  });
+
+  const availableTimeSlots = useMemo(() => {
+    if (!appointmentDate || appointmentDate > todayDateStr) {
+      return ALL_TIME_SLOTS;
+    }
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const filtered = ALL_TIME_SLOTS.filter(slot => {
+      const slotMinutes = parseTimeToMinutes(slot.value);
+      // Give at least current time or next slot
+      return slotMinutes >= currentMinutes;
+    });
+
+    return filtered.length > 0 ? filtered : [{ value: '09:00 AM', label: 'Hết giờ hôm nay (Vui lòng chọn ngày mai)' }];
+  }, [appointmentDate, todayDateStr]);
+
+  const [appointmentTime, setAppointmentTime] = useState(() => {
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const nextSlot = ALL_TIME_SLOTS.find(slot => {
+      const slotMinutes = parseTimeToMinutes(slot.value);
+      return slotMinutes >= currentMinutes + 15;
+    });
+    return nextSlot ? nextSlot.value : '09:00 AM';
+  });
+
+  // Sync appointment time if currently selected time is no longer in available list
+  useEffect(() => {
+    if (availableTimeSlots.length > 0) {
+      const isValid = availableTimeSlots.some(s => s.value === appointmentTime);
+      if (!isValid && availableTimeSlots[0].value) {
+        setAppointmentTime(availableTimeSlots[0].value);
+      }
+    }
+  }, [availableTimeSlots, appointmentTime]);
 
   // Images Gallery (Left 1 big + Right 4 small)
   const rawGallery = [
@@ -157,24 +259,53 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
     ...(building.amenitiesPccc || ['Báo cháy', 'Chuông báo cháy'])
   ]));
 
-  const handleBookingSubmit = (e) => {
+  const [isBookingLoading, setIsBookingLoading] = useState(false);
+
+  const handleBookingSubmit = async (e) => {
     e.preventDefault();
     if (!fullName || !phone) {
       alert("Vui lòng điền họ tên và số điện thoại.");
       return;
     }
 
-    DataService.createBooking({
-      customerName: fullName,
-      phone: phone,
-      email: email || "Chưa cung cấp",
-      buildingCode: building.code,
-      roomNumber: selectedRoomNumber,
-      appointmentDate: appointmentDate || new Date().toISOString().split('T')[0],
-      appointmentTime: appointmentTime
-    });
+    if (!appointmentDate) {
+      alert("Vui lòng chọn ngày hẹn xem phòng.");
+      return;
+    }
 
-    setBookingSubmitted(true);
+    if (appointmentDate < todayDateStr) {
+      alert("Thời gian hẹn không hợp lệ. Vui lòng chọn ngày từ hôm nay trở đi (không đặt lịch trong quá khứ).");
+      return;
+    }
+
+    if (appointmentDate === todayDateStr) {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const selectedMinutes = parseTimeToMinutes(appointmentTime);
+      if (selectedMinutes < currentMinutes) {
+        alert("Khung giờ hẹn đã qua. Vui lòng chọn khung giờ trong tương lai hoặc đặt lịch cho ngày mai.");
+        return;
+      }
+    }
+
+    setIsBookingLoading(true);
+    try {
+      await DataService.createBooking({
+        customerName: fullName,
+        phone: phone,
+        email: email || "Chưa cung cấp",
+        buildingCode: building.code,
+        roomNumber: selectedRoomNumber,
+        appointmentDate: appointmentDate,
+        appointmentTime: appointmentTime
+      });
+      setBookingSubmitted(true);
+    } catch (err) {
+      console.error('Booking error:', err);
+      alert('Không thể gửi lịch hẹn. Vui lòng thử lại.');
+    } finally {
+      setIsBookingLoading(false);
+    }
   };
 
   return (
@@ -184,7 +315,7 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
         <div style={{ marginBottom: 14 }}>
           <button 
             type="button"
-            onClick={() => _setActiveTab ? _setActiveTab('search') : window.history.back()}
+            onClick={() => setActiveTab ? setActiveTab('building-detail') : window.history.back()}
             style={{
               background: 'none',
               border: 'none',
@@ -520,40 +651,8 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
             </div>
           </div>
 
-          {/* RIGHT COLUMN: HOST INFO & BOOKING FORM */}
+          {/* RIGHT COLUMN: BOOKING FORM */}
           <div style={{ position: 'sticky', top: 90 }}>
-            {/* HOST CONTACT CARD */}
-            <div className="card" style={{ padding: 18, borderRadius: 14, marginBottom: 16, border: '1px solid #E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748B', marginBottom: 10 }}>
-                Thông tin chủ nhà
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                <div style={{
-                  width: 38, height: 38, borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                  color: '#ffffff', fontWeight: 900, fontSize: '1.1rem',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                  {hostName.charAt(0) || 'M'}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A' }}>{hostName}</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.82rem', color: '#64748B', paddingTop: 8, borderTop: '1px solid #F1F5F9' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Phone size={13} color="#64748B" />
-                  <span>{hostPhone}</span>
-                </div>
-                {hostEmail && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>✉️</span>
-                    <span>{hostEmail}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* BOOKING CALENDAR FORM */}
             <div className="card" style={{ padding: 20, borderRadius: 14, border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}>
               <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0F172A', marginBottom: 14 }}>
@@ -561,16 +660,18 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
               </div>
 
               {bookingSubmitted ? (
-                <div style={{ background: '#D1FAE5', color: '#065F46', padding: 14, borderRadius: 10, fontSize: '0.85rem', textAlign: 'center' }}>
-                  <CheckCircle2 size={28} color="#10B981" style={{ margin: '0 auto 6px auto' }} />
-                  <div style={{ fontWeight: 800 }}>Đặt lịch thành công!</div>
-                  <div style={{ fontSize: '0.78rem', marginTop: 4 }}>Tiny Houses sẽ liên hệ với bạn trong 15 phút.</div>
+                <div style={{ background: '#D1FAE5', color: '#065F46', padding: 16, borderRadius: 12, fontSize: '0.85rem', textAlign: 'center', border: '1px solid #A7F3D0' }}>
+                  <CheckCircle2 size={32} color="#10B981" style={{ margin: '0 auto 8px auto' }} />
+                  <div style={{ fontWeight: 900, fontSize: '0.95rem' }}>Đặt lịch xem phòng thành công!</div>
+                  <div style={{ fontSize: '0.8rem', marginTop: 6, color: '#047857', lineHeight: 1.5 }}>
+                    Yêu cầu đã được ghi nhận và gửi thông báo tới Ban Quản Lý (mkt.tinyhouses@gmail.com). Nhân viên Tiny Houses sẽ liên hệ với bạn trong ít phút!
+                  </div>
                   <button 
                     className="btn btn-primary" 
-                    style={{ marginTop: 10, width: '100%', fontSize: '0.8rem', padding: '6px' }}
+                    style={{ marginTop: 12, width: '100%', fontSize: '0.82rem', padding: '8px' }}
                     onClick={() => setBookingSubmitted(false)}
                   >
-                    Đặt lịch khác
+                    Đặt thêm lịch hẹn khác
                   </button>
                 </div>
               ) : (
@@ -616,7 +717,9 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
                       <input 
                         type="date" 
                         value={appointmentDate}
+                        min={todayDateStr}
                         onChange={(e) => setAppointmentDate(e.target.value)}
+                        required
                         style={{ width: '100%', padding: '6px 8px', fontSize: '0.78rem', borderRadius: 8, border: '1px solid #CBD5E1' }}
                       />
                       <select 
@@ -624,12 +727,9 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
                         onChange={(e) => setAppointmentTime(e.target.value)}
                         style={{ width: '100%', padding: '6px 8px', fontSize: '0.78rem', borderRadius: 8, border: '1px solid #CBD5E1', background: '#fff' }}
                       >
-                        <option value="09:00 AM">09:00 AM</option>
-                        <option value="10:00 AM">10:00 AM</option>
-                        <option value="11:00 AM">11:00 AM</option>
-                        <option value="02:00 PM">02:00 PM</option>
-                        <option value="04:00 PM">04:00 PM</option>
-                        <option value="06:00 PM">06:00 PM</option>
+                        {availableTimeSlots.map(slot => (
+                          <option key={slot.value} value={slot.value}>{slot.label}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -637,6 +737,7 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
                   <button 
                     type="submit" 
                     className="btn btn-primary" 
+                    disabled={isBookingLoading}
                     style={{
                       width: '100%',
                       padding: '10px',
@@ -647,10 +748,12 @@ export default function RoomDetailPage({ roomId, _setActiveTab }) {
                       background: 'linear-gradient(135deg, #F59E0B 0%, #E8920A 100%)',
                       border: 'none',
                       color: '#ffffff',
-                      boxShadow: '0 4px 12px rgba(232, 146, 10, 0.25)'
+                      boxShadow: '0 4px 12px rgba(232, 146, 10, 0.25)',
+                      opacity: isBookingLoading ? 0.7 : 1,
+                      cursor: isBookingLoading ? 'not-allowed' : 'pointer'
                     }}
                   >
-                    Đặt lịch
+                    {isBookingLoading ? '⏳ Đang gửi yêu cầu...' : 'Đặt lịch'}
                   </button>
                 </form>
               )}

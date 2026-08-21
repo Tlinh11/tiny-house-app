@@ -42,47 +42,7 @@ export default function RoomDetailsForm({ roomForm, setRoomForm }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* 1. THÔNG TIN LIÊN HỆ CHỦ NHÀ */}
-      <div style={{ background: '#ffffff', padding: 14, borderRadius: 12, border: '1px solid #E2E8F0' }}>
-        <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#0F172A', marginBottom: 10 }}>
-          Thông tin liên hệ chủ nhà
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-          <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', display: 'block', marginBottom: 4 }}>Tên chủ nhà</label>
-            <input
-              type="text"
-              placeholder="Ms Huyền..."
-              value={roomForm.hostName || ''}
-              onChange={(e) => setRoomForm({ ...roomForm, hostName: e.target.value })}
-              style={{ width: '100%', padding: '8px 10px', fontSize: '0.85rem', borderRadius: 8, border: '1px solid #CBD5E1' }}
-            />
-          </div>
-          <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', display: 'block', marginBottom: 4 }}>SĐT chủ nhà</label>
-            <input
-              type="text"
-              placeholder="0386570401..."
-              value={roomForm.hostPhone || ''}
-              onChange={(e) => setRoomForm({ ...roomForm, hostPhone: e.target.value })}
-              style={{ width: '100%', padding: '8px 10px', fontSize: '0.85rem', borderRadius: 8, border: '1px solid #CBD5E1' }}
-            />
-          </div>
-          <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', display: 'block', marginBottom: 4 }}>Email chủ nhà</label>
-            <input
-              type="email"
-              placeholder="email@..."
-              value={roomForm.hostEmail || ''}
-              onChange={(e) => setRoomForm({ ...roomForm, hostEmail: e.target.value })}
-              style={{ width: '100%', padding: '8px 10px', fontSize: '0.85rem', borderRadius: 8, border: '1px solid #CBD5E1' }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* 3. TIỆN ÍCH (CHECKBOX 5 NHÓM) */}
+      {/* TIỆN ÍCH (CHECKBOX 5 NHÓM) */}
       <div>
         <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0F172A', marginBottom: 8 }}>
           Tiện ích & Trang thiết bị

@@ -13,7 +13,7 @@ import RoomDetailsForm from '../../components/RoomDetailsForm';
 import SpecificRoomsSection from '../../components/SpecificRoomsSection';
 import { getRoomTypeNumbers, getRoomTypeVacantCount, getBuildingVacantCount, getValidImageUrl } from '../../utils/roomHierarchy';
 
-export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenAuthModal }) {
+export default function CMSLayout({ setActiveTab, currentUser, setCurrentUser, onLogout, onOpenAuthModal }) {
   // If not logged in, show access restriction screen
   if (!currentUser) {
     return (
@@ -22,7 +22,7 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
           background: '#ffffff',
           borderRadius: 20,
           padding: 40,
-          maxWidth: 520,
+          maxWidth: 500,
           width: '100%',
           textAlign: 'center',
           boxShadow: '0 20px 40px rgba(0,0,0,0.08)',
@@ -44,14 +44,23 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
             Yêu cầu Đăng nhập Quản trị
           </h2>
           <p style={{ color: '#64748B', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: 28 }}>
-            Khu vực Bảng điều khiển CMS dành riêng cho Ban quản lý, Super Admin và Cộng tác viên Sale. Vui lòng đăng nhập tài khoản của bạn để tiếp tục.
+            Khu vực Quản trị CMS chỉ dành riêng cho Quản trị viên và Nhân viên có tài khoản được cấp quyền. Vui lòng đăng nhập để tiếp tục.
           </p>
+
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <button className="btn btn-secondary" style={{ padding: '10px 20px' }} onClick={() => setActiveTab('home')}>
-              Về Trang chủ
+            <button 
+              className="btn btn-secondary" 
+              style={{ padding: '10px 20px', fontWeight: 700 }} 
+              onClick={() => setActiveTab('home')}
+            >
+              ← Về Trang chủ
             </button>
-            <button className="btn btn-primary" style={{ padding: '10px 24px' }} onClick={() => onOpenAuthModal && onOpenAuthModal('login')}>
-              Đăng nhập ngay
+            <button 
+              className="btn btn-primary" 
+              style={{ padding: '10px 24px', fontWeight: 800 }} 
+              onClick={() => onOpenAuthModal && onOpenAuthModal('login')}
+            >
+              Đăng nhập tài khoản
             </button>
           </div>
         </div>
@@ -161,6 +170,15 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
     allowedScreens: ['dashboard', 'rooms', 'bookings']
   });
 
+  // Delete Confirmation Modal State
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    isOpen: false,
+    type: '', // 'building' | 'room'
+    id: '',
+    name: '',
+    subText: ''
+  });
+
   // User Form Modal State
   const [showUserModal, setShowUserModal] = useState(false);
   const [userForm, setUserForm] = useState({
@@ -233,9 +251,14 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
   const furnitureOptions = ['Điều hòa', 'Nóng lạnh', 'Giường nệm', 'Tủ quần áo', 'Tủ bếp trên', 'Tủ bếp dưới', 'Tủ lạnh', 'Sofa', 'Hút mùi'];
 
   // Active User Profile
-  const activeUser = currentUser || usersList[0];
-  const userRoleObj = roles.find(r => r.code === activeUser.roleCode || r.name === activeUser.roleName) || roles[0];
-  const allowedScreens = userRoleObj ? userRoleObj.allowedScreens : availableCmsScreens.map(s => s.code);
+  const allScreenCodes = availableCmsScreens.map(s => s.code);
+  const activeUser = currentUser || usersList[0] || { name: 'Super Admin', roleCode: 'admin', roleName: 'Quản trị viên' };
+  const userRoleObj = roles.find(r => r.code === activeUser?.roleCode || r.name === activeUser?.roleName) || roles[0];
+  const allowedScreens = (userRoleObj && Array.isArray(userRoleObj.allowedScreens) && userRoleObj.allowedScreens.length > 0)
+    ? userRoleObj.allowedScreens
+    : (userRoleObj && Array.isArray(userRoleObj.allowed_screens) && userRoleObj.allowed_screens.length > 0)
+      ? userRoleObj.allowed_screens
+      : allScreenCodes;
 
   const pendingUsers = usersList.filter(u => u.status === 'Chờ duyệt');
 
@@ -635,6 +658,87 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
       setRoles(updated);
       showToast(`Đã xóa Vai trò "${roleName}".`);
     }
+  };
+
+  // Building & Room Delete Request Handlers (With Confirmation Modal)
+  const handleRequestDeleteBuilding = (b) => {
+    setDeleteConfirm({
+      isOpen: true,
+      type: 'building',
+      id: b.id,
+      name: b.name || b.code,
+      subText: `Toàn bộ các loại phòng và danh sách phòng thuộc ${b.name || b.code} cũng sẽ bị xóa khỏi hệ thống.`
+    });
+  };
+
+  const handleRequestDeleteRoom = (r) => {
+    setDeleteConfirm({
+      isOpen: true,
+      type: 'room',
+      id: r.id,
+      name: r.type || r.name,
+      subText: `Toàn bộ danh sách số phòng của loại phòng "${r.type || r.name}" sẽ bị xóa vĩnh viễn.`
+    });
+  };
+
+  const handlePromptDeleteBooking = (b) => {
+    setDeleteConfirm({
+      isOpen: true,
+      type: 'booking',
+      id: b.id,
+      name: b.id,
+      subText: `Lịch hẹn xem phòng của khách "${b.customerName}" (${b.phone}) tại ${b.buildingCode} - Căn ${b.roomNumber} sẽ bị xóa hoàn toàn khỏi hệ thống.`
+    });
+  };
+
+  const handlePromptDeleteUser = (u) => {
+    if (u.id === 'usr_admin' || u.id === 'usr_superadmin') {
+      alert('Không thể xóa tài khoản Quản trị viên tối cao (Super Admin).');
+      return;
+    }
+    setDeleteConfirm({
+      isOpen: true,
+      type: 'user',
+      id: u.id,
+      name: u.name,
+      subText: `Tài khoản người dùng "${u.name}" (${u.email || u.phone}) sẽ bị xóa vĩnh viễn khỏi cơ sở dữ liệu Supabase.`
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteConfirm.id) return;
+    
+    if (deleteConfirm.type === 'building') {
+      const updatedBuildings = DataService.deleteBuilding(deleteConfirm.id);
+      setBuildings(updatedBuildings);
+      setRooms(DataService.getRooms());
+      if (selectedBuildingForRooms === deleteConfirm.id || selectedBuildingForRooms === deleteConfirm.name) {
+        setSelectedBuildingForRooms('');
+      }
+      showToast(`🗑️ Đã xóa thành công Tòa nhà "${deleteConfirm.name}"!`);
+    } else if (deleteConfirm.type === 'room') {
+      const updatedRooms = DataService.deleteRoom(deleteConfirm.id);
+      setRooms(updatedRooms);
+      setBuildings(DataService.getBuildings());
+      showToast(`🗑️ Đã xóa thành công Loại phòng "${deleteConfirm.name}"!`);
+    } else if (deleteConfirm.type === 'booking') {
+      const updatedBookings = DataService.deleteBooking(deleteConfirm.id);
+      setBookings(updatedBookings);
+      showToast(`🗑️ Đã xóa lịch hẹn xem phòng #${deleteConfirm.name}!`);
+    } else if (deleteConfirm.type === 'user') {
+      const updatedUsers = DataService.deleteUser(deleteConfirm.id);
+      setUsersList(updatedUsers);
+      showToast(`🗑️ Đã xóa tài khoản người dùng "${deleteConfirm.name}"!`);
+    }
+    
+    setDeleteConfirm({ isOpen: false, type: '', id: '', name: '', subText: '' });
+  };
+
+  // Booking Status Handler
+  const handleUpdateBookingStatus = (bookingId, newStatus) => {
+    const updated = DataService.updateBookingStatus(bookingId, newStatus);
+    setBookings(updated);
+    showToast(`✅ Đã cập nhật trạng thái lịch hẹn #${bookingId} sang "${newStatus}"!`);
   };
 
   // User Handlers
@@ -1063,9 +1167,14 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
                       </td>
                       <td style={{ padding: 14, fontWeight: 800 }}>{(b.minPrice / 1000000).toFixed(1)} triệu đ</td>
                       <td style={{ padding: 14, textAlign: 'right' }}>
-                        <button style={{ background: 'none', color: '#64748B', marginRight: 10 }} title="Sửa chi tiết" onClick={() => handleOpenBuildingModal(b)}>
-                          <Edit size={16} />
-                        </button>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                          <button style={{ background: 'none', border: 'none', color: '#0F172A', cursor: 'pointer' }} title="Sửa chi tiết tòa nhà" onClick={() => handleOpenBuildingModal(b)}>
+                            <Edit size={16} />
+                          </button>
+                          <button style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer' }} title="Xóa tòa nhà này" onClick={() => handleRequestDeleteBuilding(b)}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1413,7 +1522,7 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
                                   <button style={{ background: 'none', border: 'none', color: '#0F172A', cursor: 'pointer' }} title="Sửa chi tiết loại phòng" onClick={() => handleOpenRoomModal(r)}>
                                     <Edit size={18} />
                                   </button>
-                                  <button style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer' }} title="Xóa loại phòng này" onClick={() => handleDeleteRoom(r.id, r.type)}>
+                                  <button style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer' }} title="Xóa loại phòng này" onClick={() => handleRequestDeleteRoom(r)}>
                                     <Trash2 size={18} />
                                   </button>
                                 </div>
@@ -1464,20 +1573,47 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
                         📅 {b.appointmentDate} lúc {b.appointmentTime}
                       </td>
                       <td style={{ padding: 14 }}>
-                        <span className={`badge ${b.status === 'Đã xác nhận' ? 'badge-success' : 'badge-warning'}`}>
-                          {b.status}
-                        </span>
+                        <select
+                          value={b.status || 'Chờ xác nhận'}
+                          onChange={(e) => handleUpdateBookingStatus(b.id, e.target.value)}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            borderRadius: 20,
+                            border: '1px solid #CBD5E1',
+                            background: b.status === 'Đã xác nhận' ? '#D1FAE5' : (b.status === 'Đã xem phòng' ? '#E0F2FE' : (b.status === 'Đã hủy' ? '#FEE2E2' : '#FEF3C7')),
+                            color: b.status === 'Đã xác nhận' ? '#065F46' : (b.status === 'Đã xem phòng' ? '#0369A1' : (b.status === 'Đã hủy' ? '#991B1B' : '#92400E')),
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <option value="Chờ xác nhận">Chờ xác nhận</option>
+                          <option value="Đã xác nhận">Đã xác nhận</option>
+                          <option value="Đã xem phòng">Đã xem phòng</option>
+                          <option value="Đã hủy">Đã hủy</option>
+                        </select>
                       </td>
                       <td style={{ padding: 14, textAlign: 'right' }}>
-                        {b.status === 'Chờ xác nhận' && (
+                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+                          {b.status === 'Chờ xác nhận' && (
+                            <button 
+                              className="btn btn-primary" 
+                              style={{ padding: '4px 10px', fontSize: '0.75rem', fontWeight: 700 }}
+                              onClick={() => handleUpdateBookingStatus(b.id, 'Đã xác nhận')}
+                              title="Xác nhận lịch hẹn với khách"
+                            >
+                              Xác nhận
+                            </button>
+                          )}
                           <button 
-                            className="btn btn-primary" 
-                            style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                            onClick={() => handleConfirmBooking(b.id)}
+                            className="btn btn-outline" 
+                            style={{ padding: '5px', borderColor: '#EF4444', color: '#EF4444' }}
+                            onClick={() => handlePromptDeleteBooking(b)}
+                            title="Xóa lịch hẹn"
                           >
-                            Xác nhận lịch
+                            <Trash2 size={14} />
                           </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1721,8 +1857,18 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
                               className="btn btn-secondary"
                               style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4, color: '#D97706', borderColor: '#FDE68A' }}
                               onClick={() => handleOpenResetPassword(u)}
+                              title="Đổi mật khẩu người dùng"
                             >
                               🔑 Đổi MK
+                            </button>
+                            <button 
+                              type="button"
+                              className="btn btn-outline"
+                              style={{ padding: '6px', color: '#EF4444', borderColor: '#FCA5A5' }}
+                              onClick={() => handlePromptDeleteUser(u)}
+                              title="Xóa người dùng"
+                            >
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         </td>
@@ -1814,37 +1960,178 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
         {/* SECTION: BACKUP DATABASE */}
         {activeCmsSection === 'database' && (
           <div>
-            <h1 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: 24 }}>Quản lý Dữ liệu & Backup JSON Database</h1>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-              <div className="card" style={{ padding: 24 }}>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Download color="#E8920A" size={20} />
-                  <span>Xuất bản Sao lưu (Export JSON)</span>
-                </h3>
-                <p style={{ color: '#64748B', fontSize: '0.85rem', marginBottom: 20 }}>
-                  Tải toàn bộ cơ sở dữ liệu thực tế gồm 19 tòa nhà, phòng trọ, phân quyền Roles & Người dùng về máy tính bên ngoài.
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+              <div>
+                <h1 style={{ fontSize: '1.8rem', fontWeight: 900, color: '#0F172A' }}>
+                  Trung tâm Quản lý Cơ sở Dữ liệu & Sao lưu
+                </h1>
+                <p style={{ color: '#64748B', fontSize: '0.9rem', marginTop: 4 }}>
+                  Kết nối trực tiếp Supabase Cloud PostgreSQL — Đồng bộ 2 chiều, sao lưu JSON và quản lý cấu trúc bảng.
                 </p>
-                <button className="btn btn-primary" onClick={handleExportBackup}>
+              </div>
+
+              <button 
+                className="btn btn-primary" 
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', fontWeight: 800 }}
+                onClick={handleSyncSupabase}
+                disabled={isSyncingSupabase}
+              >
+                <RefreshCw size={16} className={isSyncingSupabase ? 'animate-spin' : ''} />
+                <span>{isSyncingSupabase ? 'Đang đồng bộ...' : '🔄 Đồng bộ dữ liệu Supabase'}</span>
+              </button>
+            </div>
+
+            {/* 1. SUPABASE CLOUD CONNECTION STATUS CARD */}
+            <div className="card" style={{ padding: 24, marginBottom: 24, background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', color: '#ffffff', border: 'none', boxShadow: '0 8px 24px rgba(15,23,42,0.15)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#10B981', boxShadow: '0 0 10px #10B981' }} />
+                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#10B981', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Supabase Cloud PostgreSQL Active
+                    </span>
+                  </div>
+                  <h2 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#ffffff', margin: '0 0 6px 0' }}>
+                    https://dqwgponeoibhpcslqlgd.supabase.co
+                  </h2>
+                  <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>
+                    Mô hình luồng: <strong style={{ color: '#E8920A' }}>Controller → Service → Model → Database</strong> (Không lưu trữ file cục bộ)
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button 
+                    className="btn btn-secondary" 
+                    style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', fontSize: '0.85rem' }}
+                    onClick={() => {
+                      setBuildings(DataService.getBuildings());
+                      setRooms(DataService.getRooms());
+                      setBookings(DataService.getBookings());
+                      showToast('⚡ Đã làm mới bộ nhớ hiển thị UI!');
+                    }}
+                  >
+                    ⚡ Làm mới UI State
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. TABLE METRICS GRID */}
+            <div style={{ marginBottom: 32 }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0F172A', marginBottom: 14 }}>
+                Bảng dữ liệu thực tế (Database Tables)
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+                <div className="card" style={{ padding: 18, borderLeft: '4px solid #E8920A' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748B' }}>🏢 Bảng buildings</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#0F172A', margin: '4px 0' }}>
+                    {buildings.length}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#10B981', fontWeight: 700 }}>Tòa nhà đang quản lý</div>
+                </div>
+
+                <div className="card" style={{ padding: 18, borderLeft: '4px solid #3B82F6' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748B' }}>🛏️ Bảng rooms</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#0F172A', margin: '4px 0' }}>
+                    {rooms.length}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#3B82F6', fontWeight: 700 }}>
+                    {rooms.reduce((acc, r) => acc + (r.specificRooms?.length || 0), 0)} phòng cụ thể
+                  </div>
+                </div>
+
+                <div className="card" style={{ padding: 18, borderLeft: '4px solid #10B981' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748B' }}>📅 Bảng bookings</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#0F172A', margin: '4px 0' }}>
+                    {bookings.length}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#10B981', fontWeight: 700 }}>Lịch hẹn xem phòng</div>
+                </div>
+
+                <div className="card" style={{ padding: 18, borderLeft: '4px solid #8B5CF6' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748B' }}>👤 Bảng users & roles</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#0F172A', margin: '4px 0' }}>
+                    {usersList.length} / {roles.length}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#8B5CF6', fontWeight: 700 }}>Tài khoản & Vai trò</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. EXPORT & RESTORE JSON BACKUP PANELS */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+              {/* EXPORT PANEL */}
+              <div className="card" style={{ padding: 24, borderRadius: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Download size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                      Xuất bản Sao lưu JSON (Export Backup)
+                    </h3>
+                    <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Phiên bản sao lưu v2.0.0 (Full Snapshot)</span>
+                  </div>
+                </div>
+
+                <p style={{ color: '#64748B', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: 20 }}>
+                  Tạo tệp tin sao lưu đầy đủ chứa toàn bộ 39 tòa nhà, 88 loại phòng, danh sách phòng cụ thể, lịch hẹn khách hàng và tài khoản phân quyền để lưu trữ an toàn.
+                </p>
+
+                <div style={{ background: '#F8FAFC', padding: 14, borderRadius: 12, border: '1px solid #E2E8F0', marginBottom: 20 }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: 6 }}>Nội dung gói sao lưu:</div>
+                  <div style={{ fontSize: '0.78rem', color: '#64748B', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                    <div>✓ {buildings.length} Tòa nhà</div>
+                    <div>✓ {rooms.length} Loại phòng</div>
+                    <div>✓ {bookings.length} Lịch hẹn</div>
+                    <div>✓ {usersList.length} Tài khoản</div>
+                  </div>
+                </div>
+
+                <button 
+                  className="btn btn-primary" 
+                  style={{ width: '100%', padding: '12px 20px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                  onClick={handleExportBackup}
+                >
                   <Download size={18} />
                   <span>Tải bản sao lưu JSON Database</span>
                 </button>
               </div>
 
-              <div className="card" style={{ padding: 24 }}>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Upload color="#10B981" size={20} />
-                  <span>Phục hồi Dữ liệu (Restore Backup)</span>
-                </h3>
-                <p style={{ color: '#64748B', fontSize: '0.85rem', marginBottom: 20 }}>
-                  Chọn tập tin sao lưu JSON để khôi phục toàn bộ trạng thái dữ liệu hệ thống.
+              {/* RESTORE PANEL */}
+              <div className="card" style={{ padding: 24, borderRadius: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: '#D1FAE5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Upload size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                      Phục hồi Dữ liệu (Restore Backup)
+                    </h3>
+                    <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Nạp lại dữ liệu từ tệp JSON sao lưu</span>
+                  </div>
+                </div>
+
+                <p style={{ color: '#64748B', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: 20 }}>
+                  Chọn tệp JSON sao lưu đã lưu trước đó để khôi phục toàn bộ hệ thống. Quá trình này sẽ cập nhật lại các bảng dữ liệu tương ứng.
                 </p>
-                <input 
-                  type="file" 
-                  accept=".json" 
-                  onChange={handleRestoreBackup}
-                  style={{ display: 'block', width: '100%', fontSize: '0.85rem' }}
-                />
+
+                <div style={{ border: '2px dashed #CBD5E1', padding: 20, borderRadius: 12, textAlign: 'center', background: '#F8FAFC', marginBottom: 20 }}>
+                  <Upload size={28} color="#94A3B8" style={{ margin: '0 auto 8px auto' }} />
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    Chọn tệp tin sao lưu (.json)
+                  </div>
+                  <input 
+                    type="file" 
+                    accept=".json" 
+                    onChange={handleRestoreBackup}
+                    style={{ fontSize: '0.85rem', maxWidth: 280, margin: '0 auto', display: 'block' }}
+                  />
+                </div>
+
+                <div style={{ fontSize: '0.75rem', color: '#94A3B8', textAlign: 'center' }}>
+                  ⚠️ Khuyến nghị xuất một bản sao lưu trước khi tiến hành khôi phục.
+                </div>
               </div>
             </div>
           </div>
@@ -2367,6 +2654,59 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
                 <button type="submit" className="btn btn-primary" style={{ fontWeight: 800 }}>Lưu Mật Khẩu Mới</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMATION DELETE MODAL */}
+      {deleteConfirm.isOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)',
+          zIndex: 10002, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+        }}>
+          <div className="card" style={{
+            maxWidth: 440, width: '100%', padding: 28, borderRadius: 16,
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)', textAlign: 'center', background: '#FFFFFF'
+          }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: '50%', background: '#FEE2E2',
+              color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 16px auto'
+            }}>
+              <ShieldAlert size={28} />
+            </div>
+
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0F172A', marginBottom: 8 }}>
+              Xác nhận xóa {deleteConfirm.type === 'building' ? 'Tòa nhà' : 'Loại phòng'}?
+            </h3>
+
+            <p style={{ fontSize: '0.95rem', fontWeight: 700, color: '#EF4444', marginBottom: 6 }}>
+              {deleteConfirm.name}
+            </p>
+
+            <p style={{ fontSize: '0.85rem', color: '#64748B', lineHeight: 1.5, marginBottom: 24 }}>
+              {deleteConfirm.subText || 'Hành động này không thể hoàn tác. Dữ liệu sẽ bị xóa vĩnh viễn khỏi hệ thống.'}
+            </p>
+
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button 
+                type="button"
+                className="btn btn-secondary" 
+                style={{ padding: '10px 20px', fontWeight: 700, flex: 1 }}
+                onClick={() => setDeleteConfirm({ isOpen: false, type: '', id: '', name: '', subText: '' })}
+              >
+                Hủy bỏ
+              </button>
+              <button 
+                type="button"
+                className="btn btn-primary" 
+                style={{ padding: '10px 20px', fontWeight: 800, background: '#EF4444', borderColor: '#EF4444', flex: 1 }}
+                onClick={handleConfirmDelete}
+              >
+                Đồng ý Xóa
+              </button>
+            </div>
           </div>
         </div>
       )}

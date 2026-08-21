@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
-import ZaloWidget from './components/ZaloWidget';
 import AuthModal from './components/AuthModal';
 import { DataService } from './services/dataService';
 
@@ -51,19 +50,20 @@ export default function App() {
 
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
+    setActiveTab('cms');
   };
 
   const handleLogout = () => {
     DataService.logoutUser();
     setCurrentUser(null);
-    if (activeTab === 'cms') setActiveTab('home');
+    setActiveTab('home');
   };
 
   // Global Search Filter State (carried from HomePage to SearchPage)
   const [searchFilters, setSearchFilters] = useState({
     district: 'all',
     minPrice: 0,
-    maxPrice: 20000000
+    maxPrice: 35000000
   });
 
   const isCmsMode = activeTab === 'cms';
@@ -149,9 +149,6 @@ export default function App() {
       {!isCmsMode && (
         <Footer setActiveTab={setActiveTab} />
       )}
-
-      {/* Floating Orange Zalo OA Widget */}
-      {!isCmsMode && <ZaloWidget />}
 
       {/* Auth Modal */}
       <AuthModal 

@@ -221,6 +221,39 @@ export default function BuildingDetailPage({ buildingId, setActiveTab, setSelect
                   Tọa độ: {building.latitude.toFixed(5)}, {building.longitude.toFixed(5)}
                 </div>
               </div>
+
+              {/* THÔNG TIN LIÊN HỆ CHỦ NHÀ (CHỈ HIỂN THỊ Ở CHI TIẾT CĂN/TÒA) */}
+              <div style={{ marginTop: 16, padding: '16px 18px', background: '#FFFFFF', borderRadius: 14, border: '1px solid #E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748B', marginBottom: 10 }}>
+                  Thông tin liên hệ chủ nhà
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                    color: '#ffffff', fontWeight: 900, fontSize: '1.1rem',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    {(building.host?.name || 'Ms. Huyền').charAt(0)}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A' }}>
+                      {building.host?.name || 'Ms. Huyền'}
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748B' }}>Đại diện Vận hành & Quản lý</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.85rem', color: '#334155', paddingTop: 10, borderTop: '1px solid #F1F5F9' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>📞</span>
+                    <span style={{ fontWeight: 700 }}>{building.host?.phone || '0386570401'}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>✉️</span>
+                    <span>{building.host?.email || 'tinyhouse.info@gmail.com'}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -22,6 +22,10 @@ export const ApiClient = {
     }
   },
 
+  removeToken() {
+    localStorage.removeItem('tinyhouse_jwt');
+  },
+
   async get(endpoint) {
     try {
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {

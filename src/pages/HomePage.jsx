@@ -8,7 +8,7 @@ import { getValidImageUrl } from '../utils/roomHierarchy';
 export default function HomePage({ setActiveTab, setSelectedBuildingId, onSearch }) {
   const [searchDistrict, setSearchDistrict] = useState('Hà Đông');
   const [searchMinPrice, setSearchMinPrice] = useState(0);
-  const [searchMaxPrice, setSearchMaxPrice] = useState(20000000);
+  const [searchMaxPrice, setSearchMaxPrice] = useState(35000000);
   const [mapDistrict, setMapDistrict] = useState('all');
 
   const [buildings, setBuildings] = useState(() => DataService.getBuildings());
@@ -191,7 +191,7 @@ export default function HomePage({ setActiveTab, setSelectedBuildingId, onSearch
                   title="Khoảng giá"
                   popupTitle="Khoảng giá thuê / tháng"
                   min={0}
-                  max={20000000}
+                  max={35000000}
                   step={500000}
                   minValue={searchMinPrice}
                   maxValue={searchMaxPrice}
