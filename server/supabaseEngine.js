@@ -108,6 +108,7 @@ export const SupabaseDb = {
       buildingCode: r.building_code,
       buildingName: r.building_name,
       roomNumber: r.room_number,
+      specificRooms: r.room_numbers || (r.room_number ? [r.room_number] : ['501']),
       status: r.status,
       price: r.price,
       type: r.type,
@@ -119,14 +120,18 @@ export const SupabaseDb = {
 
   async saveRoom(roomData) {
     if (!supabase) return null;
+    const specificRooms = roomData.specificRooms && Array.isArray(roomData.specificRooms)
+      ? roomData.specificRooms
+      : (roomData.roomNumber ? [roomData.roomNumber] : ['501']);
+
     const payload = {
       id: roomData.id || `RM-${Date.now()}`,
-      room_type_id: roomData.roomTypeId,
+      room_type_id: roomData.roomTypeId || roomData.id,
       building_id: roomData.buildingId,
       building_code: roomData.buildingCode,
       building_name: roomData.buildingName,
-      room_number: roomData.roomNumber,
-      status: roomData.status || 'Có sẵn',
+      room_number: specificRooms[0] || '501',
+      status: specificRooms.length > 0 ? (roomData.status || 'Có sẵn') : 'Hết phòng',
       price: roomData.price || 0,
       type: roomData.type || 'Studio',
       area: roomData.area || 25,

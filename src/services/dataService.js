@@ -223,21 +223,46 @@ export const DataService = {
   saveRoom: (roomData) => {
     const rooms = getStoredItem(STORAGE_KEYS.ROOMS, INITIAL_ROOMS);
     const index = rooms.findIndex(r => r.id === roomData.id);
+
+    const specificRooms = roomData.specificRooms && Array.isArray(roomData.specificRooms)
+      ? Array.from(new Set(roomData.specificRooms))
+      : (roomData.roomNumber ? [roomData.roomNumber] : ['501']);
+
+    const roomPayload = {
+      ...roomData,
+      specificRooms: specificRooms,
+      room_numbers: specificRooms,
+      available_rooms: specificRooms.length,
+      vacantCount: specificRooms.length,
+      status: specificRooms.length > 0 ? (roomData.status || 'Có sẵn') : 'Hết phòng',
+      roomNumber: specificRooms[0] || roomData.roomNumber || '501'
+    };
+
     let updated;
     if (index >= 0) {
       updated = [...rooms];
-      updated[index] = { ...updated[index], ...roomData };
+      updated[index] = { ...updated[index], ...roomPayload };
     } else {
-      updated = [...rooms, { ...roomData, id: roomData.id || `RM-${Date.now()}` }];
+      updated = [...rooms, { ...roomPayload, id: roomPayload.id || `RM-${Date.now()}` }];
     }
     setStoredItem(STORAGE_KEYS.ROOMS, updated);
 
-    // API POST to backend in background
-    ApiClient.post('/rooms', roomData).then(apiRes => {
-      if (apiRes && Array.isArray(apiRes)) {
-        setStoredItem(STORAGE_KEYS.ROOMS, apiRes);
+    // Also update target building's vacantRoomsCount
+    const targetBuildingCode = roomPayload.buildingCode;
+    if (targetBuildingCode) {
+      const bldRooms = updated.filter(r => r.buildingCode === targetBuildingCode || r.buildingId === targetBuildingCode);
+      const totalVacantInBld = bldRooms.reduce((acc, r) => acc + (r.specificRooms?.length || (r.status === 'Có sẵn' ? 1 : 0)), 0);
+
+      const buildings = getStoredItem(STORAGE_KEYS.BUILDINGS, INITIAL_BUILDINGS);
+      const bIndex = buildings.findIndex(b => b.code === targetBuildingCode || b.id === targetBuildingCode);
+      if (bIndex >= 0) {
+        buildings[bIndex] = { ...buildings[bIndex], vacantRoomsCount: totalVacantInBld };
+        setStoredItem(STORAGE_KEYS.BUILDINGS, buildings);
       }
-    }).catch(err => console.warn('[DataService] saveRoom API warning:', err.message));
+    }
+
+    // API POST to backend in background
+    ApiClient.post('/rooms', roomPayload).catch(err => console.warn('[DataService] saveRoom API warning:', err.message));
 
     return updated;
   },

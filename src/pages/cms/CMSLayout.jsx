@@ -532,20 +532,26 @@ export default function CMSLayout({ setActiveTab, currentUser, onLogout, onOpenA
     e.preventDefault();
     const roomImages = roomForm.images && roomForm.images.length ? roomForm.images : (roomForm.coverImage ? [roomForm.coverImage] : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80']);
 
+    const specificRooms = roomForm.specificRooms && roomForm.specificRooms.length > 0
+      ? roomForm.specificRooms
+      : [roomForm.roomNumber || '501'];
+
     const updated = DataService.saveRoom({
       id: editingRoom ? editingRoom.id : `rm_${Date.now()}`,
       buildingCode: roomForm.buildingCode,
       buildingName: `Tòa nhà ${roomForm.buildingCode}`,
-      roomNumber: roomForm.roomNumber,
-      type: roomForm.type,
-      price: Number(roomForm.price),
-      area: Number(roomForm.area),
-      maxOccupants: Number(roomForm.maxOccupants),
-      availableFrom: roomForm.availableFrom,
-      status: roomForm.status,
+      roomNumber: specificRooms[0] || '501',
+      type: roomForm.type || 'Studio khép kín',
+      price: Number(roomForm.price) || 3500000,
+      area: Number(roomForm.area) || 25,
+      maxOccupants: Number(roomForm.maxOccupants) || 2,
+      availableFrom: roomForm.availableFrom || 'Ở ngay',
+      status: specificRooms.length > 0 ? (roomForm.status || 'Có sẵn') : 'Hết phòng',
       images: roomImages,
-      specificRooms: roomForm.specificRooms || [roomForm.roomNumber],
-      vacantCount: roomForm.specificRooms ? roomForm.specificRooms.length : (roomForm.status === 'Có sẵn' ? 1 : 0),
+      specificRooms: specificRooms,
+      room_numbers: specificRooms,
+      available_rooms: specificRooms.length,
+      vacantCount: specificRooms.length,
       host: {
         name: roomForm.hostName,
         phone: roomForm.hostPhone,
